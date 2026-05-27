@@ -1,0 +1,16 @@
+{
+  "name": "asshai",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "pnpm --filter frontend build",
+    "dev": "pnpm --filter frontend dev",
+    "contracts:build": "forge build --root contracts",
+    "contracts:test": "forge test --root contracts"
+  },
+  "workspaces": [
+    "frontend"
+  ],
+  "packageManager": "pnpm@10.23.0"
+}
+
