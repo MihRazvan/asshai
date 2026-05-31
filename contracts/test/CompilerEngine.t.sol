@@ -13,11 +13,17 @@ import {
     ConsensusType,
     IAgentRequester,
     Request,
+    Response,
     ResponseStatus
 } from "../src/interfaces/IAgentRequester.sol";
 
 contract MockAgentRequester is IAgentRequester {
     uint256 public nextRequestId = 1;
+    uint256 public lastAgentId;
+    address public lastCallbackAddress;
+    bytes4 public lastCallbackSelector;
+    bytes public lastPayload;
+    uint256 public lastValue;
 
     function createRequest(
         uint256 agentId,
@@ -26,10 +32,13 @@ contract MockAgentRequester is IAgentRequester {
         bytes calldata payload
     ) external payable returns (uint256 requestId) {
         requestId = nextRequestId++;
+        lastAgentId = agentId;
+        lastCallbackAddress = callbackAddress;
+        lastCallbackSelector = callbackSelector;
+        lastPayload = payload;
+        lastValue = msg.value;
         address[] memory subcommittee = new address[](0);
         emit RequestCreated(requestId, agentId, msg.value, payload, subcommittee);
-        callbackAddress;
-        callbackSelector;
     }
 
     function createAdvancedRequest(
@@ -105,4 +114,57 @@ contract CompilerEngineTest is Test {
         assertEq(requestId, 1);
         assertTrue(compilerEngine.pendingRequests(requestId));
     }
+
+    function testRatesCallbackCreatesFilterRequest() external {
+        MockAgentRequester platform = new MockAgentRequester();
+        AddressRegistry addressRegistry = new AddressRegistry(address(this));
+        StandardOrderEncoder encoder = new StandardOrderEncoder(address(addressRegistry));
+        ReceiptLogContract receiptLog = new ReceiptLogContract(address(this), address(0));
+        IntentStore intentStore = new IntentStore(address(this), address(0));
+        GoalRegistry goalRegistry = new GoalRegistry(address(this), address(0));
+        CompilerEngine compilerEngine = new CompilerEngine(
+            address(platform),
+            address(goalRegistry),
+            address(receiptLog),
+            address(intentStore),
+            address(encoder),
+            "https://example.com/api/yields",
+            "payload"
+        );
+
+        receiptLog.setCompilerEngine(address(compilerEngine));
+        intentStore.setCompilerEngine(address(compilerEngine));
+        goalRegistry.setCompilerEngine(address(compilerEngine));
+
+        string[] memory constraints = new string[](1);
+        constraints[0] = "risk-low";
+
+        uint256 goalId = goalRegistry.postGoal{value: 0.36 ether}(
+            "maximize USDC yield",
+            address(0x1234),
+            1_000e6,
+            42161,
+            constraints,
+            block.timestamp + 1 days
+        );
+
+        Response[] memory responses = new Response[](1);
+        responses[0].result = abi.encode(
+            "poolId=aave-v3-usdc-base,apy=3.2|poolId=aave-v3-usdc-mainnet,apy=3.3"
+        );
+
+        vm.prank(address(platform));
+        compilerEngine.handleRatesResponse(1, responses, ResponseStatus.Success, _emptyRequest());
+
+        (uint256 storedGoalId, CompilerEngine.CompileStep step, uint256 requestId,,) =
+            compilerEngine.compileStates(goalId);
+        assertEq(storedGoalId, goalId);
+        assertEq(uint256(step), uint256(CompilerEngine.CompileStep.FilteringPools));
+        assertEq(requestId, 2);
+        assertEq(platform.lastAgentId(), SomniaConfig.LLM_INFERENCE_AGENT_ID);
+        assertEq(platform.lastCallbackSelector(), compilerEngine.handleFilterResponse.selector);
+        assertTrue(compilerEngine.pendingRequests(requestId));
+    }
+
+    function _emptyRequest() private pure returns (Request memory request) {}
 }
