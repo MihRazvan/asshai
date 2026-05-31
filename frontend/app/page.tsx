@@ -2,7 +2,7 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { FormEvent, useState } from "react";
-import { parseUnits } from "viem";
+import { parseEther, parseUnits } from "viem";
 import { useAccount, useWriteContract } from "wagmi";
 import { goalRegistryAbi, goalRegistryAddress } from "@/lib/contracts";
 
@@ -27,7 +27,7 @@ export default function Home() {
         ["risk-low", "stablecoin"],
         BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60),
       ],
-      value: BigInt(0),
+      value: parseEther("0.6"),
     });
   }
 

@@ -85,10 +85,7 @@ contract CompilerEngine {
         emit RatesSourceSet(initialRatesUrl, initialRatesSelector);
     }
 
-    function setRatesSource(
-        string calldata newRatesUrl,
-        string calldata newRatesSelector
-    ) external onlyOwner {
+    function setRatesSource(string calldata newRatesUrl, string calldata newRatesSelector) external onlyOwner {
         require(bytes(newRatesUrl).length > 0, "Empty URL");
         require(bytes(newRatesSelector).length > 0, "Empty selector");
         ratesUrl = newRatesUrl;
@@ -104,19 +101,12 @@ contract CompilerEngine {
         state.goalId = goalId;
         state.step = CompileStep.FetchingRates;
 
-        bytes memory payload = abi.encodeWithSelector(
-            IJsonApiAgent.fetchString.selector,
-            ratesUrl,
-            ratesSelector
-        );
+        bytes memory payload = abi.encodeWithSelector(IJsonApiAgent.fetchString.selector, ratesUrl, ratesSelector);
         uint256 deposit = _jsonRequestDeposit();
         require(msg.value >= deposit, "Insufficient compile fee");
 
         uint256 requestId = platform.createRequest{value: deposit}(
-            SomniaConfig.JSON_API_AGENT_ID,
-            address(this),
-            this.handleRatesResponse.selector,
-            payload
+            SomniaConfig.JSON_API_AGENT_ID, address(this), this.handleRatesResponse.selector, payload
         );
 
         state.currentAgentRequestId = requestId;
@@ -159,7 +149,9 @@ contract CompilerEngine {
         Response[] memory responses,
         ResponseStatus status,
         Request memory /* details */
-    ) private {
+    )
+        private
+    {
         require(msg.sender == address(platform), "Only platform can call");
         require(pendingRequests[requestId], "Unknown request");
 
@@ -218,10 +210,7 @@ contract CompilerEngine {
         require(address(this).balance >= deposit, "Insufficient LLM fee");
 
         uint256 filterRequestId = platform.createRequest{value: deposit}(
-            SomniaConfig.LLM_INFERENCE_AGENT_ID,
-            address(this),
-            this.handleFilterResponse.selector,
-            payload
+            SomniaConfig.LLM_INFERENCE_AGENT_ID, address(this), this.handleFilterResponse.selector, payload
         );
 
         CompileState storage state = compileStates[goalId];
@@ -272,19 +261,23 @@ contract CompilerEngine {
 
     function _requestAllocationPlan(uint256 goalId, string memory candidates) private {
         GoalRegistry.Goal memory goal = goalRegistry.getGoal(goalId);
+        string memory poolData = abi.decode(compileStates[goalId].ratesPayload, (string));
         string memory prompt = string.concat(
             "Build an allocation plan. Output ONLY a JSON object in this exact schema:\n",
             "{\"allocations\":[{\"chainName\":\"<name>\",\"poolId\":\"<id>\",\"pct\":<0-100>}],",
             "\"reasoning\":\"<short>\"}\n",
-            "Percentages must sum to exactly 100. No markdown. No text before or after the JSON.\n\n",
+            "Use lowercase chainName values only. Percentages must sum to exactly 100. ",
+            "No markdown. No text before or after the JSON.\n\n",
             "Goal: \"",
             goal.naturalLanguage,
             "\"\nSource: ",
             _uintToString(goal.sourceAmount),
             " units on chain ",
             _uintToString(goal.sourceChainId),
-            "\nPools to allocate across (you must use all):\n",
-            candidates
+            "\nSelected pool IDs to allocate across (you must use all):\n",
+            candidates,
+            "\n\nCandidate pool data with canonical lowercase chain names:\n",
+            poolData
         );
 
         string[] memory allowedValues = new string[](0);
@@ -299,10 +292,7 @@ contract CompilerEngine {
         require(address(this).balance >= deposit, "Insufficient plan fee");
 
         uint256 planRequestId = platform.createRequest{value: deposit}(
-            SomniaConfig.LLM_INFERENCE_AGENT_ID,
-            address(this),
-            this.handlePlanResponse.selector,
-            payload
+            SomniaConfig.LLM_INFERENCE_AGENT_ID, address(this), this.handlePlanResponse.selector, payload
         );
 
         CompileState storage state = compileStates[goalId];
@@ -318,7 +308,9 @@ contract CompilerEngine {
         Response[] memory responses,
         ResponseStatus status,
         Request memory /* details */
-    ) private {
+    )
+        private
+    {
         require(msg.sender == address(platform), "Only platform can call");
         require(pendingRequests[requestId], "Unknown request");
 
@@ -343,16 +335,47 @@ contract CompilerEngine {
         string memory plan = abi.decode(responses[0].result, (string));
         CompileState storage state = compileStates[goalId];
         state.allocationPlan = abi.encode(plan);
-        state.currentAgentRequestId = 0;
         state.step = CompileStep.EncodingOrder;
 
         receiptLog.log(goalId, "plan_built", abi.encode(plan), requestId);
         emit PlanBuilt(goalId, requestId, plan);
+
+        (bool parsed, StandardOrderEncoder.Allocation[] memory allocations) = _parseAllocationPlan(plan);
+        if (!parsed || !_allocationsUseCandidates(goalId, allocations)) {
+            state.currentAgentRequestId = 0;
+            state.step = CompileStep.Failed;
+            goalRegistry.markFailed(goalId);
+            emit CompileFailed(goalId, requestId, ResponseStatus.Failed);
+            return;
+        }
+
+        GoalRegistry.Goal memory goal = goalRegistry.getGoal(goalId);
+        try standardOrderEncoder.encode(
+            goal.author, goal.sourceChainId, goal.sourceAsset, goal.sourceAmount, allocations
+        ) returns (
+            bytes memory encodedIntent
+        ) {
+            intentStore.store(goalId, encodedIntent);
+            bytes32 intentHash = intentStore.getIntentHash(goalId);
+
+            state.currentAgentRequestId = 0;
+            state.step = CompileStep.Done;
+
+            receiptLog.log(goalId, "order_encoded", encodedIntent, 0);
+            goalRegistry.markIntentReady(goalId, intentHash);
+            emit IntentReady(goalId, intentHash);
+        } catch {
+            state.currentAgentRequestId = 0;
+            state.step = CompileStep.Failed;
+            goalRegistry.markFailed(goalId);
+            emit CompileFailed(goalId, requestId, ResponseStatus.Failed);
+        }
     }
 
     function _jsonRequestDeposit() private view returns (uint256) {
-        return platform.getRequestDeposit()
-            + (SomniaConfig.JSON_API_COST_PER_AGENT * SomniaConfig.DEFAULT_SUBCOMMITTEE_SIZE);
+        return
+            platform.getRequestDeposit()
+                + (SomniaConfig.JSON_API_COST_PER_AGENT * SomniaConfig.DEFAULT_SUBCOMMITTEE_SIZE);
     }
 
     function _llmRequestDeposit() private view returns (uint256) {
@@ -395,11 +418,217 @@ contract CompilerEngine {
         }
     }
 
-    function _slice(
-        bytes memory data,
-        uint256 start,
-        uint256 end
-    ) private pure returns (string memory) {
+    function _parseAllocationPlan(string memory plan)
+        private
+        pure
+        returns (bool ok, StandardOrderEncoder.Allocation[] memory allocations)
+    {
+        bytes memory data = bytes(plan);
+        bytes memory chainKey = bytes("\"chainName\"");
+
+        uint256 count = _countOccurrences(data, chainKey);
+        if (count == 0 || count > 3) {
+            return (false, allocations);
+        }
+
+        allocations = new StandardOrderEncoder.Allocation[](count);
+        uint256 cursor;
+        uint256 totalBps;
+
+        for (uint256 i = 0; i < count; i++) {
+            (ok, allocations[i], cursor) = _parseAllocationAt(data, cursor);
+            if (!ok) {
+                return (false, allocations);
+            }
+            totalBps += allocations[i].bps;
+        }
+
+        return (totalBps == 10_000, allocations);
+    }
+
+    function _parseAllocationAt(bytes memory data, uint256 cursor)
+        private
+        pure
+        returns (bool ok, StandardOrderEncoder.Allocation memory allocation, uint256 nextCursor)
+    {
+        bytes memory chainKey = bytes("\"chainName\"");
+        bytes memory poolKey = bytes("\"poolId\"");
+        bytes memory pctKey = bytes("\"pct\"");
+
+        bool found;
+        string memory chainName;
+        string memory poolId;
+        uint256 pct;
+
+        (found, cursor) = _find(data, chainKey, cursor);
+        if (!found) {
+            return (false, allocation, cursor);
+        }
+        (ok, chainName, cursor) = _readJsonStringValue(data, cursor + chainKey.length);
+        if (!ok) {
+            return (false, allocation, cursor);
+        }
+
+        (found, cursor) = _find(data, poolKey, cursor);
+        if (!found) {
+            return (false, allocation, cursor);
+        }
+        (ok, poolId, cursor) = _readJsonStringValue(data, cursor + poolKey.length);
+        if (!ok) {
+            return (false, allocation, cursor);
+        }
+
+        (found, cursor) = _find(data, pctKey, cursor);
+        if (!found) {
+            return (false, allocation, cursor);
+        }
+        (ok, pct, cursor) = _readJsonUintValue(data, cursor + pctKey.length);
+        if (!ok || pct > 100) {
+            return (false, allocation, cursor);
+        }
+
+        allocation =
+            StandardOrderEncoder.Allocation({chainName: _toLowerAscii(chainName), poolId: poolId, bps: uint16(pct * 100)});
+        return (true, allocation, cursor);
+    }
+
+    function _allocationsUseCandidates(uint256 goalId, StandardOrderEncoder.Allocation[] memory allocations)
+        private
+        view
+        returns (bool)
+    {
+        string[] storage candidates = compileStates[goalId].candidatePoolIds;
+        if (allocations.length == 0 || candidates.length == 0) {
+            return false;
+        }
+
+        for (uint256 i = 0; i < allocations.length; i++) {
+            bool matched;
+            for (uint256 j = 0; j < candidates.length; j++) {
+                if (_stringEq(allocations[i].poolId, candidates[j])) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function _countOccurrences(bytes memory data, bytes memory needle) private pure returns (uint256 count) {
+        uint256 cursor;
+        bool found = true;
+        while (found) {
+            (found, cursor) = _find(data, needle, cursor);
+            if (found) {
+                count++;
+                cursor += needle.length;
+            }
+        }
+    }
+
+    function _find(bytes memory data, bytes memory needle, uint256 start)
+        private
+        pure
+        returns (bool found, uint256 index)
+    {
+        if (needle.length == 0 || data.length < needle.length || start > data.length - needle.length) {
+            return (false, 0);
+        }
+
+        for (uint256 i = start; i <= data.length - needle.length; i++) {
+            bool matched = true;
+            for (uint256 j = 0; j < needle.length; j++) {
+                if (data[i + j] != needle[j]) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched) {
+                return (true, i);
+            }
+        }
+    }
+
+    function _readJsonStringValue(bytes memory data, uint256 cursor)
+        private
+        pure
+        returns (bool ok, string memory value, uint256 nextCursor)
+    {
+        while (cursor < data.length && data[cursor] != 0x3a) {
+            cursor++;
+        }
+        if (cursor == data.length) {
+            return (false, value, cursor);
+        }
+
+        cursor++;
+        while (cursor < data.length && _isWhitespace(data[cursor])) {
+            cursor++;
+        }
+        if (cursor == data.length || data[cursor] != 0x22) {
+            return (false, value, cursor);
+        }
+
+        uint256 start = ++cursor;
+        while (cursor < data.length && data[cursor] != 0x22) {
+            cursor++;
+        }
+        if (cursor == data.length) {
+            return (false, value, cursor);
+        }
+
+        return (true, _slice(data, start, cursor), cursor + 1);
+    }
+
+    function _readJsonUintValue(bytes memory data, uint256 cursor)
+        private
+        pure
+        returns (bool ok, uint256 value, uint256 nextCursor)
+    {
+        while (cursor < data.length && data[cursor] != 0x3a) {
+            cursor++;
+        }
+        if (cursor == data.length) {
+            return (false, 0, cursor);
+        }
+
+        cursor++;
+        while (cursor < data.length && _isWhitespace(data[cursor])) {
+            cursor++;
+        }
+
+        uint256 start = cursor;
+        while (cursor < data.length && data[cursor] >= 0x30 && data[cursor] <= 0x39) {
+            value = (value * 10) + (uint8(data[cursor]) - 48);
+            cursor++;
+        }
+
+        return (cursor > start, value, cursor);
+    }
+
+    function _isWhitespace(bytes1 char) private pure returns (bool) {
+        return char == 0x20 || char == 0x0a || char == 0x0d || char == 0x09;
+    }
+
+    function _toLowerAscii(string memory value) private pure returns (string memory) {
+        bytes memory data = bytes(value);
+        for (uint256 i = 0; i < data.length; i++) {
+            if (data[i] >= 0x41 && data[i] <= 0x5a) {
+                data[i] = bytes1(uint8(data[i]) + 32);
+            }
+        }
+        return string(data);
+    }
+
+    function _stringEq(string memory left, string memory right) private pure returns (bool) {
+        return keccak256(bytes(left)) == keccak256(bytes(right));
+    }
+
+    function _slice(bytes memory data, uint256 start, uint256 end) private pure returns (string memory) {
         bytes memory out = new bytes(end - start);
         for (uint256 i = start; i < end; i++) {
             out[i - start] = data[i];
