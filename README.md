@@ -6,12 +6,12 @@ This repository follows `BUILD_PLAN.md` as the source of truth.
 
 ## Somnia testnet contracts
 
-- GoalRegistry: `0x06A361DfDD8d63AcCb1AEf1C02e7C31C50e97af1`
-- CompilerEngine: `0xa6B3EF98fC847ba6146Bf681846Fe5c3215Dc711`
-- ReceiptLog: `0x29452CAf63505fb2B76D9b819905143a65910C76`
-- IntentStore: `0x5bE497c2Bb2d5b6aa0f67F7DE9ACD912d84EE66a`
-- AddressRegistry: `0x935e79EE5F5217DFe5E1A80c5EB0091517FAEb9D`
-- StandardOrderEncoder: `0x99429Db645D004194b000A2BD1384ffee6BB7E01`
+- GoalRegistry: `0x3d37cDE79CCcA78334972e6bf1d351f607aF2ca6`
+- CompilerEngine: `0x174c3D0b1828d61b73fF4aD2F562A3d27bC3d942`
+- ReceiptLog: `0xCaf26d33E74cc952284AA3aA71a67DBe69deEFC1`
+- IntentStore: `0x0D0891Ae2733E3D8644D1044F497Af4bb63404ea`
+- AddressRegistry: `0xD37ad369bD8264f0ce3d970686b716663243D0E2`
+- StandardOrderEncoder: `0x0E72AE42040d0FD7eeec544fb1BC29e0cb76fdEf`
 
 ## Smoke test
 
@@ -27,3 +27,5 @@ The LLM inference smoke contract is deployed at
 the JSON API agent selector in `COMPILER_RATES_SELECTOR`. The frontend exposes
 the intended normalizer at `/api/yields`; point `COMPILER_RATES_URL` at the
 public deployed app URL before deploying a compiler intended to run live.
+Current testnet compiler source: `https://asshai.vercel.app/api/yields` with
+selector `payload`.
