@@ -3,44 +3,44 @@ pragma solidity ^0.8.24;
 
 contract ReceiptLog {
     struct ReceiptEntry {
-        uint256 intentId;
+        uint256 goalId;
         uint256 timestamp;
         string stepName;
         bytes data;
         uint256 agentRequestId;
     }
 
-    address public solverEngine;
-    mapping(uint256 => ReceiptEntry[]) private entriesByIntent;
+    address public compilerEngine;
+    mapping(uint256 => ReceiptEntry[]) private entriesByGoal;
 
-    event SolverEngineSet(address indexed solverEngine);
-    event ReceiptLogged(uint256 indexed intentId, string step, uint256 requestId);
+    event CompilerEngineSet(address indexed compilerEngine);
+    event ReceiptLogged(uint256 indexed goalId, string step, uint256 requestId);
 
-    modifier onlySolverEngine() {
-        require(msg.sender == solverEngine, "Only solver");
+    modifier onlyCompilerEngine() {
+        require(msg.sender == compilerEngine, "Only compiler");
         _;
     }
 
-    constructor(address initialSolverEngine) {
-        solverEngine = initialSolverEngine;
-        emit SolverEngineSet(initialSolverEngine);
+    constructor(address initialCompilerEngine) {
+        compilerEngine = initialCompilerEngine;
+        emit CompilerEngineSet(initialCompilerEngine);
     }
 
-    function setSolverEngine(address newSolverEngine) external {
-        require(solverEngine == address(0) || msg.sender == solverEngine, "Only solver");
-        solverEngine = newSolverEngine;
-        emit SolverEngineSet(newSolverEngine);
+    function setCompilerEngine(address newCompilerEngine) external {
+        require(compilerEngine == address(0) || msg.sender == compilerEngine, "Only compiler");
+        compilerEngine = newCompilerEngine;
+        emit CompilerEngineSet(newCompilerEngine);
     }
 
     function log(
-        uint256 intentId,
+        uint256 goalId,
         string calldata step,
         bytes calldata data,
         uint256 requestId
-    ) external onlySolverEngine {
-        entriesByIntent[intentId].push(
+    ) external onlyCompilerEngine {
+        entriesByGoal[goalId].push(
             ReceiptEntry({
-                intentId: intentId,
+                goalId: goalId,
                 timestamp: block.timestamp,
                 stepName: step,
                 data: data,
@@ -48,11 +48,10 @@ contract ReceiptLog {
             })
         );
 
-        emit ReceiptLogged(intentId, step, requestId);
+        emit ReceiptLogged(goalId, step, requestId);
     }
 
-    function getEntries(uint256 intentId) external view returns (ReceiptEntry[] memory) {
-        return entriesByIntent[intentId];
+    function getEntries(uint256 goalId) external view returns (ReceiptEntry[] memory) {
+        return entriesByGoal[goalId];
     }
 }
-
