@@ -26,15 +26,17 @@ contract Deploy is Script {
 
         address addressRegistry = address(new AddressRegistry(msg.sender));
         address standardOrderEncoder = address(new StandardOrderEncoder(addressRegistry));
-        address receiptLog = address(new ReceiptLogContract(address(0)));
-        address intentStore = address(new IntentStore(address(0)));
-        address goalRegistry = address(new GoalRegistry(address(0)));
+        address receiptLog = address(new ReceiptLogContract(msg.sender, address(0)));
+        address intentStore = address(new IntentStore(msg.sender, address(0)));
+        address goalRegistry = address(new GoalRegistry(msg.sender, address(0)));
         address compilerEngine = address(new CompilerEngine(
             SomniaConfig.TESTNET_PLATFORM,
             goalRegistry,
             receiptLog,
             intentStore,
-            standardOrderEncoder
+            standardOrderEncoder,
+            vm.envOr("COMPILER_RATES_URL", string("https://example.com/api/yields")),
+            vm.envOr("COMPILER_RATES_SELECTOR", string("payload"))
         ));
 
         ReceiptLogContract(receiptLog).setCompilerEngine(compilerEngine);

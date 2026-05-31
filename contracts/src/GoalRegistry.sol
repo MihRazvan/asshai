@@ -32,8 +32,10 @@ contract GoalRegistry {
     mapping(uint256 => bytes32) public intentHashes;
     mapping(uint256 => string) public catalystOrderIds;
     uint256 public nextGoalId;
+    address public owner;
     address public compilerEngine;
 
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event CompilerEngineSet(address indexed compilerEngine);
     event GoalPosted(
         uint256 indexed goalId,
@@ -52,13 +54,25 @@ contract GoalRegistry {
         _;
     }
 
-    constructor(address initialCompilerEngine) {
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
+
+    constructor(address initialOwner, address initialCompilerEngine) {
+        owner = initialOwner == address(0) ? msg.sender : initialOwner;
         compilerEngine = initialCompilerEngine;
+        emit OwnershipTransferred(address(0), owner);
         emit CompilerEngineSet(initialCompilerEngine);
     }
 
-    function setCompilerEngine(address newCompilerEngine) external {
-        require(compilerEngine == address(0) || msg.sender == compilerEngine, "Only compiler");
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Zero owner");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    function setCompilerEngine(address newCompilerEngine) external onlyOwner {
         compilerEngine = newCompilerEngine;
         emit CompilerEngineSet(newCompilerEngine);
     }
