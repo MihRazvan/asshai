@@ -188,7 +188,7 @@ contract CompilerEngine {
         GoalRegistry.Goal memory goal = goalRegistry.getGoal(goalId);
         string memory prompt = string.concat(
             "You are a DeFi yield router. Given the user's goal and constraints, select ",
-            "the top 3 pools from the candidates that best fit the goal. Return ONLY pool ",
+            "the top 2 pools from the candidates that best fit the goal. Return ONLY pool ",
             "IDs, comma-separated, no other text.\n\nGoal: \"",
             goal.naturalLanguage,
             "\"\nConstraints: ",
@@ -267,6 +267,7 @@ contract CompilerEngine {
             "{\"allocations\":[{\"chainName\":\"<name>\",\"poolId\":\"<id>\",\"pct\":<0-100>}],",
             "\"reasoning\":\"<short>\"}\n",
             "Use lowercase chainName values only. Percentages must sum to exactly 100. ",
+            "Use at most two allocations. Every allocation pct must be greater than 0. ",
             "No markdown. No text before or after the JSON.\n\n",
             "Goal: \"",
             goal.naturalLanguage,
@@ -427,7 +428,7 @@ contract CompilerEngine {
         bytes memory chainKey = bytes("\"chainName\"");
 
         uint256 count = _countOccurrences(data, chainKey);
-        if (count == 0 || count > 3) {
+        if (count == 0 || count > 2) {
             return (false, allocations);
         }
 
@@ -483,7 +484,7 @@ contract CompilerEngine {
             return (false, allocation, cursor);
         }
         (ok, pct, cursor) = _readJsonUintValue(data, cursor + pctKey.length);
-        if (!ok || pct > 100) {
+        if (!ok || pct == 0 || pct > 100) {
             return (false, allocation, cursor);
         }
 
