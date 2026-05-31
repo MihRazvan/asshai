@@ -1,13 +1,21 @@
-const LIFI_BASE_URL = "https://li.quest/v1";
+const LIFI_ORDER_BASE_URL = "https://order.li.fi";
 
-export async function getLifiQuote(params: Record<string, string>) {
-  const search = new URLSearchParams(params);
-  const response = await fetch(`${LIFI_BASE_URL}/quote?${search.toString()}`);
+export async function getSupportedIntentChains() {
+  const response = await fetch(`${LIFI_ORDER_BASE_URL}/chains/supported`);
 
   if (!response.ok) {
-    throw new Error(`LI.FI quote failed: ${response.status}`);
+    throw new Error(`LI.FI supported chains request failed: ${response.status}`);
   }
 
   return response.json();
 }
 
+export async function getIntentRoutes() {
+  const response = await fetch(`${LIFI_ORDER_BASE_URL}/routes`);
+
+  if (!response.ok) {
+    throw new Error(`LI.FI routes request failed: ${response.status}`);
+  }
+
+  return response.json();
+}

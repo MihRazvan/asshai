@@ -43,6 +43,7 @@ contract CompilerEngineTest is Test {
 
         assertEq(goalId, 0);
         assertEq(uint256(goalRegistry.getGoal(goalId).status), uint256(GoalRegistry.GoalStatus.Compiling));
-        assertEq(compilerEngine.compileStates(goalId).goalId, goalId);
+        (uint256 storedGoalId,,,,) = compilerEngine.compileStates(goalId);
+        assertEq(storedGoalId, goalId);
     }
 }

@@ -3,42 +3,51 @@ pragma solidity ^0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 import {SomniaConfig} from "../src/SomniaConfig.sol";
-import {IntentRegistry} from "../src/IntentRegistry.sol";
-import {SolverEngine} from "../src/SolverEngine.sol";
+import {AddressRegistry} from "../src/AddressRegistry.sol";
+import {CompilerEngine} from "../src/CompilerEngine.sol";
+import {GoalRegistry} from "../src/GoalRegistry.sol";
+import {IntentStore} from "../src/IntentStore.sol";
 import {ReceiptLog as ReceiptLogContract} from "../src/ReceiptLog.sol";
-import {PlanVault} from "../src/PlanVault.sol";
+import {StandardOrderEncoder} from "../src/StandardOrderEncoder.sol";
 
 contract Deploy is Script {
     function run()
         external
         returns (
-            address intentRegistryAddress,
-            address solverEngineAddress,
+            address goalRegistryAddress,
+            address compilerEngineAddress,
             address receiptLogAddress,
-            address planVaultAddress
+            address intentStoreAddress,
+            address addressRegistryAddress,
+            address standardOrderEncoderAddress
         )
     {
         vm.startBroadcast();
 
+        address addressRegistry = address(new AddressRegistry(msg.sender));
+        address standardOrderEncoder = address(new StandardOrderEncoder(addressRegistry));
         address receiptLog = address(new ReceiptLogContract(address(0)));
-        address planVault = address(new PlanVault(address(0)));
-        address intentRegistry = address(new IntentRegistry(address(0)));
-        address solverEngine = address(new SolverEngine(
+        address intentStore = address(new IntentStore(address(0)));
+        address goalRegistry = address(new GoalRegistry(address(0)));
+        address compilerEngine = address(new CompilerEngine(
             SomniaConfig.TESTNET_PLATFORM,
-            intentRegistry,
+            goalRegistry,
             receiptLog,
-            planVault
+            intentStore,
+            standardOrderEncoder
         ));
 
-        ReceiptLogContract(receiptLog).setSolverEngine(solverEngine);
-        PlanVault(planVault).setSolverEngine(solverEngine);
-        IntentRegistry(payable(intentRegistry)).setSolverEngine(solverEngine);
+        ReceiptLogContract(receiptLog).setCompilerEngine(compilerEngine);
+        IntentStore(intentStore).setCompilerEngine(compilerEngine);
+        GoalRegistry(payable(goalRegistry)).setCompilerEngine(compilerEngine);
 
         vm.stopBroadcast();
 
-        intentRegistryAddress = intentRegistry;
-        solverEngineAddress = solverEngine;
+        goalRegistryAddress = goalRegistry;
+        compilerEngineAddress = compilerEngine;
         receiptLogAddress = receiptLog;
-        planVaultAddress = planVault;
+        intentStoreAddress = intentStore;
+        addressRegistryAddress = addressRegistry;
+        standardOrderEncoderAddress = standardOrderEncoder;
     }
 }

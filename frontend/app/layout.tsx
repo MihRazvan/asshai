@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "Asshai",
-  description: "Verifiable intent solver on Somnia",
+  description: "On-chain intent compiler on Somnia",
 };
 
 export default function RootLayout({
@@ -22,4 +22,3 @@ export default function RootLayout({
     </html>
   );
 }
-

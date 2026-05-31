@@ -7,9 +7,8 @@ export default async function IntentPage({
 
   return (
     <main>
-      <h1>Intent {id}</h1>
-      <p>Plan view will be wired after the agent chain is implemented.</p>
+      <h1>Compiled intent {id}</h1>
+      <p>StandardOrder view will be wired after the agent chain is implemented.</p>
     </main>
   );
 }
-
