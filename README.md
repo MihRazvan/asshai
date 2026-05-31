@@ -17,3 +17,13 @@ This repository follows `BUILD_PLAN.md` as the source of truth.
 
 The canonical BTC price oracle smoke contract is deployed at
 `0x38ea72f87b8473e9c06690ecbc788fea2fcdba8c`.
+
+The LLM inference smoke contract is deployed at
+`0xeb1ff73d01e3cd6ad68a36a7de3b2b0292c7a9da`.
+
+## Compiler data source
+
+`CompilerEngine` reads a compact rates payload from `COMPILER_RATES_URL` using
+the JSON API agent selector in `COMPILER_RATES_SELECTOR`. The frontend exposes
+the intended normalizer at `/api/yields`; point `COMPILER_RATES_URL` at the
+public deployed app URL before deploying a compiler intended to run live.
