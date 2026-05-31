@@ -4,8 +4,11 @@ const lifiOrderBaseUrl = "https://order.li.fi";
 
 export async function GET(request: NextRequest) {
   const catalystOrderId = request.nextUrl.searchParams.get("catalystOrderId");
+  const onChainOrderId = request.nextUrl.searchParams.get("onChainOrderId");
   const endpoint = catalystOrderId
     ? `/orders/status?catalystOrderId=${encodeURIComponent(catalystOrderId)}`
+    : onChainOrderId
+      ? `/orders/status?onChainOrderId=${encodeURIComponent(onChainOrderId)}`
     : "/chains/supported";
 
   const response = await fetch(`${lifiOrderBaseUrl}${endpoint}`);
