@@ -17,6 +17,7 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { somniaTestnet } from "@/lib/somnia";
 import {
   erc20Abi,
   goalRegistryAbi,
@@ -136,12 +137,15 @@ export function IntentClient({ goalId }: { goalId: string }) {
     abi: goalRegistryAbi,
     functionName: "getGoal",
     args: [parsedGoalId],
+    chainId: somniaTestnet.id,
+    query: { refetchInterval: 3_000 },
   });
   const { data: encodedIntent } = useReadContract({
     address: intentStoreAddress,
     abi: intentStoreAbi,
     functionName: "getIntent",
     args: [parsedGoalId],
+    chainId: somniaTestnet.id,
     query: { refetchInterval: 3_000 },
   });
   const { data: intentHash } = useReadContract({
@@ -149,6 +153,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
     abi: intentStoreAbi,
     functionName: "getIntentHash",
     args: [parsedGoalId],
+    chainId: somniaTestnet.id,
     query: { refetchInterval: 3_000 },
   });
   const { data: receipts } = useReadContract({
@@ -156,6 +161,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
     abi: receiptLogAbi,
     functionName: "getEntries",
     args: [parsedGoalId],
+    chainId: somniaTestnet.id,
     query: { refetchInterval: 3_000 },
   });
 
@@ -185,6 +191,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
   const inputAmount = input?.[1] ?? 0n;
   const originChainId = order ? Number(order.originChainId) : undefined;
   const mustSwitchToOrigin = Boolean(originChainId && chainId !== originChainId);
+  const orderExpired = order ? Date.now() >= order.expires * 1000 : false;
   const status = goal ? goalStatuses[goal.status] : "Loading";
 
   async function checkStatus() {
@@ -249,6 +256,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
       <section>
         <h2>Open Escrow Order</h2>
         <p>LI.FI standard escrow flow requires approval, then an origin-chain call to InputSettlerEscrow.open.</p>
+        {orderExpired ? <p>This order is expired. Compile a fresh goal before opening escrow.</p> : null}
         {mustSwitchToOrigin && originChainId ? (
           <button type="button" onClick={() => switchChain({ chainId: originChainId })}>
             Switch to origin chain {originChainId}
@@ -256,7 +264,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
         ) : null}
         <button
           type="button"
-          disabled={!isConnected || !order || !inputToken || isApprovePending || mustSwitchToOrigin}
+          disabled={!isConnected || !order || !inputToken || isApprovePending || mustSwitchToOrigin || orderExpired}
           onClick={() =>
             inputToken &&
             approve({
@@ -264,6 +272,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
               abi: erc20Abi,
               functionName: "approve",
               args: [inputSettlerEscrowAddress, inputAmount],
+              chainId: originChainId,
             })
           }
         >
@@ -271,13 +280,14 @@ export function IntentClient({ goalId }: { goalId: string }) {
         </button>
         <button
           type="button"
-          disabled={!isConnected || !order || !encodedIntent || isOpenPending || mustSwitchToOrigin}
+          disabled={!isConnected || !order || !encodedIntent || isOpenPending || mustSwitchToOrigin || orderExpired}
           onClick={() =>
             openOrder({
               address: inputSettlerEscrowAddress,
               abi: inputSettlerEscrowAbi,
               functionName: "open",
               args: [encodedIntent as Hex],
+              chainId: originChainId,
             })
           }
         >
