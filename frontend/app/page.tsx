@@ -39,7 +39,7 @@ export default function Home() {
       args: [
         goal,
         arbitrumUsdc,
-        parseUnits("1000", 6),
+        parseUnits("1", 6),
         BigInt(42161),
         ["risk-low", "stablecoin"],
         BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60),
