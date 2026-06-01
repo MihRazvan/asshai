@@ -369,8 +369,9 @@ Endpoints we hit:
 
 - `GET https://order.li.fi/chains/supported` - read the live list of supported origin/destination chains. Call at app boot and cache.
 - `GET https://order.li.fi/routes` - see active route pairs and supported tokens. Call at app boot.
-- `POST https://order.li.fi/orders/submit` - submit our encoded StandardOrder. Returns `catalystOrderId`.
-- `GET https://order.li.fi/orders/status?catalystOrderId=...` - poll status.
+- `POST https://order.li.fi/quote/request` - optional quote discovery before constructing/opening an order.
+- `GET https://order.li.fi/orders/status?onChainOrderId=...` - poll status after opening a standard escrow order on-chain.
+- `POST https://order.li.fi/orders/submit` - only for gasless escrow or Compact-style off-chain submissions, not the default v1 escrow path.
 
 ### Submission flow
 
@@ -379,13 +380,13 @@ After `IntentReady` fires on Somnia:
 1. Frontend reads the encoded StandardOrder from `IntentStore`.
 2. Frontend decodes it to the typed structure for display in the UI.
 3. User reviews the structured intent.
-4. User clicks "Sign & Submit."
-5. Frontend prepares the EIP-712 typed-data signature for the user's origin-chain wallet.
-6. User signs.
-7. Frontend POSTs to `https://order.li.fi/orders/submit` with `{order, signature, ...}`.
-8. Server returns `catalystOrderId`.
-9. Frontend writes `catalystOrderId` to `GoalRegistry.markSubmitted(goalId, catalystOrderId)`.
-10. Frontend polls `/orders/status?catalystOrderId=...` every ~3 seconds.
+4. User clicks "Approve input token" on the origin-chain wallet.
+5. Frontend calls ERC-20 `approve(InputSettlerEscrow, amount)` if allowance is insufficient.
+6. User clicks "Open escrow order."
+7. Frontend calls LI.FI `InputSettlerEscrow.open(encodedStandardOrder)` on the origin chain.
+8. The escrow emits `Open(bytes32 indexed orderId, bytes order)`.
+9. Frontend records the `orderId` and polls `/orders/status?onChainOrderId=...` every ~3 seconds.
+10. For gasless or Compact flows only, use `POST /orders/submit` with the required quote/signature metadata.
 
 ### StandardOrder structure (canonical, from LI.FI docs)
 
@@ -402,18 +403,18 @@ type StandardOrder = {
 };
 
 type MandateOutput = {
-  oracle: `0x${string}`;
-  settler: `0x${string}`;
+  oracle: `0x${string}`;    // bytes32, EVM address left-padded
+  settler: `0x${string}`;   // bytes32, EVM address left-padded
   chainId: bigint;
-  token: `0x${string}`;
+  token: `0x${string}`;     // bytes32, EVM address left-padded
   amount: bigint;
-  recipient: `0x${string}`;
+  recipient: `0x${string}`; // bytes32, EVM address left-padded
   call: `0x${string}`;
   context: `0x${string}`;
 };
 ```
 
-`tokenIdentifier` is the token address represented as a `uint256` by left-padding the address.
+`tokenIdentifier` is the input token address represented as a `uint256`. Output `oracle`, `settler`, `token`, and `recipient` are `bytes32`; for EVM addresses, left-pad the 20-byte address with zeros.
 
 ### Order status lifecycle
 

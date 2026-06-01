@@ -17,7 +17,6 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { arbitrum } from "wagmi/chains";
 import {
   erc20Abi,
   goalRegistryAbi,
@@ -55,12 +54,12 @@ const standardOrderAbi = [
         name: "outputs",
         type: "tuple[]",
         components: [
-          { name: "oracle", type: "address" },
-          { name: "settler", type: "address" },
+          { name: "oracle", type: "bytes32" },
+          { name: "settler", type: "bytes32" },
           { name: "chainId", type: "uint256" },
-          { name: "token", type: "address" },
+          { name: "token", type: "bytes32" },
           { name: "amount", type: "uint256" },
-          { name: "recipient", type: "address" },
+          { name: "recipient", type: "bytes32" },
           { name: "call", type: "bytes" },
           { name: "context", type: "bytes" },
         ],
@@ -117,9 +116,13 @@ function tokenIdentifierToAddress(tokenIdentifier: bigint) {
   return `0x${tokenIdentifier.toString(16).padStart(40, "0").slice(-40)}` as Hex;
 }
 
+function bytes32ToAddress(value: Hex) {
+  return `0x${value.slice(-40)}` as Hex;
+}
+
 export function IntentClient({ goalId }: { goalId: string }) {
   const parsedGoalId = BigInt(goalId);
-  const { address, chainId, isConnected } = useAccount();
+  const { chainId, isConnected } = useAccount();
   const { switchChain } = useSwitchChain();
   const [lifiStatus, setLifiStatus] = useState<string>();
   const { data: approveHash, error: approveError, isPending: isApprovePending, writeContract: approve } =
@@ -165,7 +168,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
       return;
     }
 
-    const openTopic = toEventHash("Open(bytes32,(address,uint256,uint256,uint32,uint32,address,uint256[2][],(bytes32,bytes32,uint256,bytes32,uint256,bytes32,bytes,bytes)[]))");
+    const openTopic = toEventHash("Open(bytes32,bytes)");
     const openLog = receipt.logs.find(
       (log) =>
         isAddressEqual(log.address, inputSettlerEscrowAddress) &&
@@ -232,8 +235,8 @@ export function IntentClient({ goalId }: { goalId: string }) {
             <ul>
               {order.outputs.map((output, index) => (
                 <li key={`${output.chainId}-${output.token}-${index}`}>
-                  chain {output.chainId.toString()} token {output.token}: {formatUnits(output.amount, 6)} to{" "}
-                  {output.recipient}
+                  chain {output.chainId.toString()} token {bytes32ToAddress(output.token)}:{" "}
+                  {formatUnits(output.amount, 6)} to {bytes32ToAddress(output.recipient)}
                 </li>
               ))}
             </ul>

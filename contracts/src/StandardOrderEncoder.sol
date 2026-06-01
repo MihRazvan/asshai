@@ -11,12 +11,12 @@ contract StandardOrderEncoder {
     }
 
     struct MandateOutput {
-        address oracle;
-        address settler;
+        bytes32 oracle;
+        bytes32 settler;
         uint256 chainId;
-        address token;
+        bytes32 token;
         uint256 amount;
-        address recipient;
+        bytes32 recipient;
         bytes call;
         bytes context;
     }
@@ -56,6 +56,7 @@ contract StandardOrderEncoder {
         uint256 allocatedAmount;
         MandateOutput[] memory outputs = new MandateOutput[](allocs.length);
         address inputOracle;
+        bytes32 recipient = _addressToBytes32(user);
 
         for (uint256 i = 0; i < allocs.length; i++) {
             AddressRegistry.VenueConfig memory venue =
@@ -78,12 +79,12 @@ contract StandardOrderEncoder {
             }
 
             outputs[i] = MandateOutput({
-                oracle: venue.oracle,
-                settler: venue.outputSettler,
+                oracle: _addressToBytes32(venue.oracle),
+                settler: _addressToBytes32(venue.outputSettler),
                 chainId: venue.chainId,
-                token: venue.vaultToken,
+                token: _addressToBytes32(venue.vaultToken),
                 amount: amount,
-                recipient: user,
+                recipient: recipient,
                 call: "",
                 context: ""
             });
@@ -96,7 +97,7 @@ contract StandardOrderEncoder {
 
         StandardOrder memory order = StandardOrder({
             user: user,
-            nonce: uint256(keccak256(abi.encode(user, sourceChainId, sourceAsset, block.timestamp))),
+            nonce: uint256(keccak256(abi.encode(user, sourceChainId, sourceAsset, sourceAmount, allocs, block.timestamp))),
             originChainId: sourceChainId,
             expires: uint32(block.timestamp + 2 hours),
             fillDeadline: uint32(block.timestamp + 30 minutes),
@@ -106,5 +107,9 @@ contract StandardOrderEncoder {
         });
 
         return abi.encode(order);
+    }
+
+    function _addressToBytes32(address value) private pure returns (bytes32) {
+        return bytes32(uint256(uint160(value)));
     }
 }

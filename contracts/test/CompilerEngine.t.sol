@@ -60,6 +60,28 @@ contract MockAgentRequester is IAgentRequester {
 }
 
 contract CompilerEngineTest is Test {
+    struct CanonicalMandateOutput {
+        bytes32 oracle;
+        bytes32 settler;
+        uint256 chainId;
+        bytes32 token;
+        uint256 amount;
+        bytes32 recipient;
+        bytes call;
+        bytes context;
+    }
+
+    struct CanonicalStandardOrder {
+        address user;
+        uint256 nonce;
+        uint256 originChainId;
+        uint32 expires;
+        uint32 fillDeadline;
+        address inputOracle;
+        uint256[2][] inputs;
+        CanonicalMandateOutput[] outputs;
+    }
+
     function testPostGoalStartsStubCompile() external {
         MockAgentRequester platform = new MockAgentRequester();
         AddressRegistry addressRegistry = new AddressRegistry(address(this));
@@ -174,6 +196,22 @@ contract CompilerEngineTest is Test {
         assertEq(uint256(goalRegistry.getGoal(goalId).status), uint256(GoalRegistry.GoalStatus.IntentReady));
         assertGt(compilerEngine.intentStore().getIntent(goalId).length, 0);
         assertEq(goalRegistry.intentHashes(goalId), compilerEngine.intentStore().getIntentHash(goalId));
+
+        CanonicalStandardOrder memory order =
+            abi.decode(compilerEngine.intentStore().getIntent(goalId), (CanonicalStandardOrder));
+        assertEq(order.user, address(this));
+        assertEq(order.originChainId, 42161);
+        assertEq(order.inputOracle, address(0x4001));
+        assertEq(order.inputs.length, 1);
+        assertEq(order.inputs[0][0], uint256(uint160(address(0x1234))));
+        assertEq(order.inputs[0][1], 1_000e6);
+        assertEq(order.outputs.length, 1);
+        assertEq(order.outputs[0].oracle, _addressToBytes32(address(0x4001)));
+        assertEq(order.outputs[0].settler, _addressToBytes32(address(0x3001)));
+        assertEq(order.outputs[0].chainId, 8453);
+        assertEq(order.outputs[0].token, _addressToBytes32(address(0x2001)));
+        assertEq(order.outputs[0].amount, 1_000e6);
+        assertEq(order.outputs[0].recipient, _addressToBytes32(address(this)));
     }
 
     function testPlanCallbackRejectsZeroPctAllocation() external {
@@ -273,4 +311,8 @@ contract CompilerEngineTest is Test {
     }
 
     function _emptyRequest() private pure returns (Request memory request) {}
+
+    function _addressToBytes32(address value) private pure returns (bytes32) {
+        return bytes32(uint256(uint160(value)));
+    }
 }

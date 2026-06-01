@@ -37,7 +37,7 @@ type DefiLlamaPool = {
 
 export async function GET() {
   const response = await fetch("https://yields.llama.fi/pools", {
-    next: { revalidate: 60 },
+    cache: "no-store",
   });
 
   if (!response.ok) {
