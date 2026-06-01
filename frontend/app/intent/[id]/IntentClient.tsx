@@ -8,7 +8,6 @@ import {
   Hex,
   isHex,
   isAddressEqual,
-  toEventHash,
 } from "viem";
 import {
   useAccount,
@@ -174,11 +173,9 @@ export function IntentClient({ goalId }: { goalId: string }) {
       return;
     }
 
-    const openTopic = toEventHash("Open(bytes32,bytes)");
     const openLog = receipt.logs.find(
       (log) =>
         isAddressEqual(log.address, inputSettlerEscrowAddress) &&
-        log.topics[0] === openTopic &&
         log.topics[1],
     );
     if (openLog?.topics[1]) {
@@ -281,15 +278,19 @@ export function IntentClient({ goalId }: { goalId: string }) {
         <button
           type="button"
           disabled={!isConnected || !order || !encodedIntent || isOpenPending || mustSwitchToOrigin || orderExpired}
-          onClick={() =>
+          onClick={() => {
+            if (!order) {
+              return;
+            }
+
             openOrder({
               address: inputSettlerEscrowAddress,
               abi: inputSettlerEscrowAbi,
               functionName: "open",
-              args: [encodedIntent as Hex],
+              args: [order],
               chainId: originChainId,
-            })
-          }
+            });
+          }}
         >
           {isOpenPending ? "Opening..." : "Open escrow order"}
         </button>
