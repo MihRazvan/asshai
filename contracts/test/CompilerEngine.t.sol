@@ -241,6 +241,33 @@ contract CompilerEngineTest is Test {
         assertEq(compilerEngine.intentStore().getIntentHash(goalId), bytes32(0));
     }
 
+    function testPlanCallbackRejectsReasoningInsideAllocationsArray() external {
+        (MockAgentRequester platform, CompilerEngine compilerEngine, GoalRegistry goalRegistry,) = _deployHarness();
+
+        string[] memory constraints = new string[](1);
+        constraints[0] = "risk-low";
+
+        uint256 goalId = goalRegistry.postGoal{value: 0.6 ether}(
+            "maximize USDC yield", address(0x1234), 1_000e6, 42161, constraints, block.timestamp + 1 days
+        );
+
+        _mockRatesCallback(platform, compilerEngine);
+        _mockFilterCallback(platform, compilerEngine);
+
+        Response[] memory responses = new Response[](1);
+        responses[0].result = abi.encode(
+            "{\"allocations\":[{\"chainName\":\"base\",\"poolId\":\"aave-v3-usdc-base\",\"pct\":100},\"reasoning\":\"malformed\"]}"
+        );
+
+        vm.prank(address(platform));
+        compilerEngine.handlePlanResponse(3, responses, ResponseStatus.Success, _emptyRequest());
+
+        (, CompilerEngine.CompileStep step,,,) = compilerEngine.compileStates(goalId);
+        assertEq(uint256(step), uint256(CompilerEngine.CompileStep.Failed));
+        assertEq(uint256(goalRegistry.getGoal(goalId).status), uint256(GoalRegistry.GoalStatus.Failed));
+        assertEq(compilerEngine.intentStore().getIntentHash(goalId), bytes32(0));
+    }
+
     function _deployHarness()
         private
         returns (
