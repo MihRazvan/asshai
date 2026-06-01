@@ -427,14 +427,13 @@ contract CompilerEngine {
         returns (bool ok, StandardOrderEncoder.Allocation[] memory allocations)
     {
         bytes memory data = bytes(plan);
-        (bool envelopeOk, uint256 allocationsStart, uint256 allocationsEnd) = _validatePlanEnvelope(data);
-        if (!envelopeOk) {
+        if (!_reasoningAfterAllocations(data)) {
             return (false, allocations);
         }
 
         bytes memory chainKey = bytes("\"chainName\"");
 
-        uint256 count = _countOccurrences(data, chainKey, allocationsStart, allocationsEnd);
+        uint256 count = _countOccurrences(data, chainKey);
         if (count == 0 || count > 2) {
             return (false, allocations);
         }
@@ -444,7 +443,7 @@ contract CompilerEngine {
         uint256 totalBps;
 
         for (uint256 i = 0; i < count; i++) {
-            (ok, allocations[i], cursor) = _parseAllocationAt(data, cursor, allocationsEnd);
+            (ok, allocations[i], cursor) = _parseAllocationAt(data, cursor);
             if (!ok) {
                 return (false, allocations);
             }
@@ -454,60 +453,24 @@ contract CompilerEngine {
         return (totalBps == 10_000, allocations);
     }
 
-    function _validatePlanEnvelope(bytes memory data)
-        private
-        pure
-        returns (bool ok, uint256 allocationsStart, uint256 allocationsEnd)
-    {
-        uint256 first = _firstNonWhitespace(data);
-        uint256 last = _lastNonWhitespace(data);
-        if (data.length == 0 || first >= data.length || data[first] != 0x7b || data[last] != 0x7d) {
-            return (false, 0, 0);
-        }
-
+    function _reasoningAfterAllocations(bytes memory data) private pure returns (bool) {
         bytes memory allocationsKey = bytes("\"allocations\"");
         bytes memory reasoningKey = bytes("\"reasoning\"");
-        bool found;
-        uint256 keyIndex;
-        (found, keyIndex) = _find(data, allocationsKey, first);
-        if (!found) {
-            return (false, 0, 0);
-        }
+        bytes memory closeArray = bytes("]");
+        bool foundAllocations;
+        bool foundReasoning;
+        bool foundClose;
+        uint256 allocationsIndex;
+        uint256 reasoningIndex;
+        uint256 closeIndex;
 
-        uint256 cursor = keyIndex + allocationsKey.length;
-        while (cursor < data.length && data[cursor] != 0x3a) {
-            cursor++;
-        }
-        if (cursor == data.length) {
-            return (false, 0, 0);
-        }
-        cursor++;
-        while (cursor < data.length && _isWhitespace(data[cursor])) {
-            cursor++;
-        }
-        if (cursor == data.length || data[cursor] != 0x5b) {
-            return (false, 0, 0);
-        }
-
-        allocationsStart = cursor + 1;
-        (found, allocationsEnd) = _findMatchingArrayEnd(data, cursor);
-        if (!found) {
-            return (false, 0, 0);
-        }
-
-        if (_countOccurrences(data, reasoningKey, allocationsStart, allocationsEnd) != 0) {
-            return (false, 0, 0);
-        }
-
-        (found, cursor) = _find(data, reasoningKey, allocationsEnd);
-        if (!found || cursor > last) {
-            return (false, 0, 0);
-        }
-
-        return (true, allocationsStart, allocationsEnd);
+        (foundAllocations, allocationsIndex) = _find(data, allocationsKey, 0);
+        (foundReasoning, reasoningIndex) = _find(data, reasoningKey, 0);
+        (foundClose, closeIndex) = _find(data, closeArray, allocationsIndex);
+        return foundAllocations && foundReasoning && foundClose && reasoningIndex > closeIndex;
     }
 
-    function _parseAllocationAt(bytes memory data, uint256 cursor, uint256 end)
+    function _parseAllocationAt(bytes memory data, uint256 cursor)
         private
         pure
         returns (bool ok, StandardOrderEncoder.Allocation memory allocation, uint256 nextCursor)
@@ -522,29 +485,29 @@ contract CompilerEngine {
         uint256 pct;
 
         (found, cursor) = _find(data, chainKey, cursor);
-        if (!found || cursor >= end) {
+        if (!found) {
             return (false, allocation, cursor);
         }
         (ok, chainName, cursor) = _readJsonStringValue(data, cursor + chainKey.length);
-        if (!ok || cursor > end) {
+        if (!ok) {
             return (false, allocation, cursor);
         }
 
         (found, cursor) = _find(data, poolKey, cursor);
-        if (!found || cursor >= end) {
+        if (!found) {
             return (false, allocation, cursor);
         }
         (ok, poolId, cursor) = _readJsonStringValue(data, cursor + poolKey.length);
-        if (!ok || cursor > end) {
+        if (!ok) {
             return (false, allocation, cursor);
         }
 
         (found, cursor) = _find(data, pctKey, cursor);
-        if (!found || cursor >= end) {
+        if (!found) {
             return (false, allocation, cursor);
         }
         (ok, pct, cursor) = _readJsonUintValue(data, cursor + pctKey.length);
-        if (!ok || cursor > end || pct == 0 || pct > 100) {
+        if (!ok || pct == 0 || pct > 100) {
             return (false, allocation, cursor);
         }
 
@@ -579,73 +542,15 @@ contract CompilerEngine {
         return true;
     }
 
-    function _countOccurrences(bytes memory data, bytes memory needle, uint256 start, uint256 end)
-        private
-        pure
-        returns (uint256 count)
-    {
-        uint256 cursor = start;
+    function _countOccurrences(bytes memory data, bytes memory needle) private pure returns (uint256 count) {
+        uint256 cursor;
         bool found = true;
         while (found) {
             (found, cursor) = _find(data, needle, cursor);
-            if (found && cursor < end) {
+            if (found) {
                 count++;
                 cursor += needle.length;
-            } else {
-                found = false;
             }
-        }
-    }
-
-    function _findMatchingArrayEnd(bytes memory data, uint256 openIndex)
-        private
-        pure
-        returns (bool found, uint256 closeIndex)
-    {
-        bool inString;
-        bool escaped;
-        uint256 depth;
-
-        for (uint256 i = openIndex; i < data.length; i++) {
-            bytes1 char = data[i];
-            if (inString) {
-                if (escaped) {
-                    escaped = false;
-                } else if (char == 0x5c) {
-                    escaped = true;
-                } else if (char == 0x22) {
-                    inString = false;
-                }
-                continue;
-            }
-
-            if (char == 0x22) {
-                inString = true;
-            } else if (char == 0x5b) {
-                depth++;
-            } else if (char == 0x5d) {
-                depth--;
-                if (depth == 0) {
-                    return (true, i);
-                }
-            }
-        }
-    }
-
-    function _firstNonWhitespace(bytes memory data) private pure returns (uint256 index) {
-        while (index < data.length && _isWhitespace(data[index])) {
-            index++;
-        }
-    }
-
-    function _lastNonWhitespace(bytes memory data) private pure returns (uint256 index) {
-        if (data.length == 0) {
-            return 0;
-        }
-
-        index = data.length - 1;
-        while (index > 0 && _isWhitespace(data[index])) {
-            index--;
         }
     }
 
