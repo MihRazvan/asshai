@@ -49,7 +49,7 @@ contract SeedRegistry is Script {
             "base",
             "aave-v3-usdc-base",
             AddressRegistry.VenueConfig({
-                vaultToken: BASE_AUSDC,
+                vaultToken: BASE_USDC,
                 outputSettler: OUTPUT_SETTLER,
                 oracle: POLYMER_ORACLE_MAINNET,
                 chainId: BASE_CHAIN_ID,

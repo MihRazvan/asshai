@@ -11,22 +11,6 @@ const curatedPools = [
     symbol: "USDC",
     lockup: "none",
   },
-  {
-    poolId: "aave-v3-usdc-mainnet",
-    llamaPoolId: "aa70268e-4b52-42bf-a116-608b370f9501",
-    chainName: "ethereum",
-    project: "aave-v3",
-    symbol: "USDC",
-    lockup: "none",
-  },
-  {
-    poolId: "aave-v3-usdc-arb",
-    llamaPoolId: "d9fa8e14-0447-4207-9ae8-7810199dfa1f",
-    chainName: "arbitrum",
-    project: "aave-v3",
-    symbol: "USDC",
-    lockup: "none",
-  },
 ];
 
 type DefiLlamaPool = {
