@@ -17,7 +17,7 @@ contract StandardOrderEncoder {
         bytes32 token;
         uint256 amount;
         bytes32 recipient;
-        bytes call;
+        bytes callbackData;
         bytes context;
     }
 
@@ -32,6 +32,15 @@ contract StandardOrderEncoder {
         MandateOutput[] outputs;
     }
 
+    struct YieldAction {
+        uint256 goalId;
+        address beneficiary;
+        address deliveryToken;
+        address positionToken;
+        bytes32 strategyId;
+        uint256 minAmount;
+    }
+
     AddressRegistry public immutable registry;
 
     constructor(address registryAddress) {
@@ -40,6 +49,7 @@ contract StandardOrderEncoder {
     }
 
     function encode(
+        uint256 goalId,
         address user,
         uint256 sourceChainId,
         address sourceAsset,
@@ -56,21 +66,17 @@ contract StandardOrderEncoder {
         uint256 allocatedAmount;
         MandateOutput[] memory outputs = new MandateOutput[](allocs.length);
         address inputOracle;
-        bytes32 recipient = _addressToBytes32(user);
 
         for (uint256 i = 0; i < allocs.length; i++) {
             AddressRegistry.VenueConfig memory venue =
                 registry.getVenue(allocs[i].chainName, allocs[i].poolId);
             require(venue.active, "Inactive venue");
-            require(venue.vaultToken != address(0), "Missing vault token");
-            require(venue.outputSettler != address(0), "Missing output settler");
-            require(venue.oracle != address(0), "Missing oracle");
 
             totalBps += allocs[i].bps;
-            uint256 amount = i == allocs.length - 1
+            uint256 inputAmount = i == allocs.length - 1
                 ? sourceAmount - allocatedAmount
                 : (sourceAmount * allocs[i].bps) / 10_000;
-            allocatedAmount += amount;
+            allocatedAmount += inputAmount;
 
             if (inputOracle == address(0)) {
                 inputOracle = venue.oracle;
@@ -78,16 +84,7 @@ contract StandardOrderEncoder {
                 require(inputOracle == venue.oracle, "Mixed oracle systems");
             }
 
-            outputs[i] = MandateOutput({
-                oracle: _addressToBytes32(venue.oracle),
-                settler: _addressToBytes32(venue.outputSettler),
-                chainId: venue.chainId,
-                token: _addressToBytes32(venue.vaultToken),
-                amount: amount,
-                recipient: recipient,
-                call: "",
-                context: ""
-            });
+            outputs[i] = _buildOutput(goalId, user, inputAmount, venue);
         }
 
         require(totalBps == 10_000, "Invalid bps");
@@ -97,7 +94,7 @@ contract StandardOrderEncoder {
 
         StandardOrder memory order = StandardOrder({
             user: user,
-            nonce: uint256(keccak256(abi.encode(user, sourceChainId, sourceAsset, sourceAmount, allocs, block.timestamp))),
+            nonce: uint256(keccak256(abi.encode(goalId, user, sourceChainId, sourceAsset, sourceAmount, allocs, block.timestamp))),
             originChainId: sourceChainId,
             expires: uint32(block.timestamp + 2 hours),
             fillDeadline: uint32(block.timestamp + 30 minutes),
@@ -111,5 +108,53 @@ contract StandardOrderEncoder {
 
     function _addressToBytes32(address value) private pure returns (bytes32) {
         return bytes32(uint256(uint160(value)));
+    }
+
+    function _buildOutput(
+        uint256 goalId,
+        address user,
+        uint256 inputAmount,
+        AddressRegistry.VenueConfig memory venue
+    ) private pure returns (MandateOutput memory output) {
+        require(venue.deliveryToken != address(0), "Missing delivery token");
+        require(venue.outputSettler != address(0), "Missing output settler");
+        require(venue.oracle != address(0), "Missing oracle");
+        require(venue.outputBps <= 10_000, "Invalid output bps");
+
+        uint256 outputAmount = (inputAmount * _outputBpsOrDefault(venue.outputBps)) / 10_000;
+        require(outputAmount > 0, "Zero output amount");
+
+        bytes memory callbackData;
+        bytes32 recipient = _addressToBytes32(user);
+        if (venue.receiver != address(0)) {
+            require(venue.strategyId != bytes32(0), "Missing strategy");
+            require(venue.positionToken != address(0), "Missing position token");
+            callbackData = abi.encode(
+                YieldAction({
+                    goalId: goalId,
+                    beneficiary: user,
+                    deliveryToken: venue.deliveryToken,
+                    positionToken: venue.positionToken,
+                    strategyId: venue.strategyId,
+                    minAmount: outputAmount
+                })
+            );
+            recipient = _addressToBytes32(venue.receiver);
+        }
+
+        output = MandateOutput({
+            oracle: _addressToBytes32(venue.oracle),
+            settler: _addressToBytes32(venue.outputSettler),
+            chainId: venue.chainId,
+            token: _addressToBytes32(venue.deliveryToken),
+            amount: outputAmount,
+            recipient: recipient,
+            callbackData: callbackData,
+            context: ""
+        });
+    }
+
+    function _outputBpsOrDefault(uint16 outputBps) private pure returns (uint16) {
+        return outputBps == 0 ? 10_000 : outputBps;
     }
 }

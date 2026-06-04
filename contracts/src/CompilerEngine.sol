@@ -354,7 +354,7 @@ contract CompilerEngine {
 
         GoalRegistry.Goal memory goal = goalRegistry.getGoal(goalId);
         try standardOrderEncoder.encode(
-            goal.author, goal.sourceChainId, goal.sourceAsset, goal.sourceAmount, allocations
+            goalId, goal.author, goal.sourceChainId, goal.sourceAsset, goal.sourceAmount, allocations
         ) returns (
             bytes memory encodedIntent
         ) {

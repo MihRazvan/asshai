@@ -213,9 +213,58 @@ The rejection path is product-positive: it proves the compiler has bounded autho
 - Need refund UI for expired/stuck orders.
 - Need to decide whether to use LI.FI Earn data, DefiLlama data, or both for candidate generation.
 
+## Follow-Up: Solver Exclusivity And Callback Risk
+
+After a second review, callback-recipient solver behavior should be treated as the main execution risk, not a minor edge case.
+
+LI.FI solver guidance says solvers validate calldata-bearing outputs and may need to whitelist recipients when calldata is present. This matters because an unknown `AsshaiYieldReceiver` can revert, consume solver gas, or otherwise fail simulation. A vanilla USDC-to-USDC order is easy for solvers to fill; a USDC-to-receiver-with-callback order asks them to trust more.
+
+`POST /quote/request` helps but does not fully solve this by itself. A live black-box test showed the endpoint accepts extra `callbackData` fields in the quote request, returns a normal quote with `metadata.exclusiveFor`, but does not echo or price the callback fields. The quoted output amount matched the vanilla route shape. Therefore:
+
+- `metadata.exclusiveFor` is useful for route matching and can be encoded into output `context`.
+- It should not be interpreted as proof that the solver has simulated or committed to our destination callback.
+- Callback viability still has to be tested with a real opened order.
+
+Practical consequence: receiver work should happen behind a fallback. Keep the already-working bridge-only demo recorded and ready, then attempt the callback path with conservative output amounts and exclusive solver context.
+
+## Near-Term Path Decision
+
+There are two credible paths:
+
+### Path A - Receiver Callback Demo
+
+Build the Base `AsshaiYieldReceiver`, encode Base USDC delivery to that receiver, and use callback data to deposit into Aave V3 for the user.
+
+Required constraints:
+
+- Use one output only.
+- Use Base USDC as the delivered token.
+- Use conservative output amount, e.g. route output below quoted vanilla output.
+- Encode `exclusiveFor` context when a quote provides it.
+- Keep callback logic tiny and deterministic.
+- Have a bridge-only fallback video before risking demo time.
+
+This is the stronger product demo if it fills: the user asks for yield and actually receives a yield position.
+
+### Path B - Bridge-Only Demo, Callback As Roadmap
+
+Ship the already-working intent compiler and LI.FI settlement path. The compiled order moves USDC to the selected destination chain, and a follow-up UI action deposits into Aave.
+
+This has lower protocol risk and is safer for a deadline, but the story is weaker because the "yield" action is not atomically fulfilled by the intent.
+
+### Recommendation
+
+Proceed with Path A only if we keep Path B as a fallback. The first implementation slice should be:
+
+1. Add a minimal Base `AsshaiYieldReceiver`.
+2. Add receiver-aware encoding with a conservative `outputBps`.
+3. Add quote preflight and exclusive solver context where available.
+4. Test with a tiny real order.
+
+If the callback order does not move past `Signed` quickly, stop and use Path B for the hackathon demo.
+
 ## Final Recommendation
 
 Proceed with `AsshaiYieldReceiver` and whitelisted adapters.
 
 It is the best fit if the product remains an on-chain Intent Compiler for LI.FI/OIF StandardOrders. Composer/Earn is excellent infrastructure and should inform venue discovery, but using Composer as the primary execution path would move us away from the intent-native thesis. The receiver path keeps the strongest story: Somnia compiles the goal; LI.FI solvers deliver the asset; our whitelisted destination contract performs the DeFi action; every reasoning and encoding step remains auditable.
-

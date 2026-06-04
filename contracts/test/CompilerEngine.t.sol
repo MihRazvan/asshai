@@ -67,7 +67,7 @@ contract CompilerEngineTest is Test {
         bytes32 token;
         uint256 amount;
         bytes32 recipient;
-        bytes call;
+        bytes callbackData;
         bytes context;
     }
 
@@ -212,6 +212,50 @@ contract CompilerEngineTest is Test {
         assertEq(order.outputs[0].token, _addressToBytes32(address(0x2001)));
         assertEq(order.outputs[0].amount, 1_000e6);
         assertEq(order.outputs[0].recipient, _addressToBytes32(address(this)));
+        assertEq(order.outputs[0].callbackData.length, 0);
+    }
+
+    function testEncoderBuildsReceiverCallbackIntent() external {
+        AddressRegistry addressRegistry = new AddressRegistry(address(this));
+        address receiver = address(0x5001);
+        bytes32 strategyId = keccak256("aave-v3-usdc-base:supply");
+
+        addressRegistry.setInputSettler(42161, address(0x1001));
+        addressRegistry.setVenue(
+            "base",
+            "aave-v3-usdc-base",
+            AddressRegistry.VenueConfig({
+                deliveryToken: address(0x2001),
+                positionToken: address(0x2002),
+                outputSettler: address(0x3001),
+                oracle: address(0x4001),
+                receiver: receiver,
+                chainId: 8453,
+                strategyId: strategyId,
+                outputBps: 9_900,
+                active: true
+            })
+        );
+        StandardOrderEncoder encoder = new StandardOrderEncoder(address(addressRegistry));
+        StandardOrderEncoder.Allocation[] memory allocations = new StandardOrderEncoder.Allocation[](1);
+        allocations[0] = StandardOrderEncoder.Allocation({chainName: "base", poolId: "aave-v3-usdc-base", bps: 10_000});
+
+        bytes memory encoded = encoder.encode(42, address(this), 42161, address(0x1234), 1_000e6, allocations);
+        CanonicalStandardOrder memory order = abi.decode(encoded, (CanonicalStandardOrder));
+
+        assertEq(order.outputs.length, 1);
+        assertEq(order.outputs[0].token, _addressToBytes32(address(0x2001)));
+        assertEq(order.outputs[0].amount, 990e6);
+        assertEq(order.outputs[0].recipient, _addressToBytes32(receiver));
+
+        StandardOrderEncoder.YieldAction memory action =
+            abi.decode(order.outputs[0].callbackData, (StandardOrderEncoder.YieldAction));
+        assertEq(action.goalId, 42);
+        assertEq(action.beneficiary, address(this));
+        assertEq(action.deliveryToken, address(0x2001));
+        assertEq(action.positionToken, address(0x2002));
+        assertEq(action.strategyId, strategyId);
+        assertEq(action.minAmount, 990e6);
     }
 
     function testPlanCallbackRejectsZeroPctAllocation() external {
@@ -284,10 +328,14 @@ contract CompilerEngineTest is Test {
             "base",
             "aave-v3-usdc-base",
             AddressRegistry.VenueConfig({
-                vaultToken: address(0x2001),
+                deliveryToken: address(0x2001),
+                positionToken: address(0),
                 outputSettler: address(0x3001),
                 oracle: address(0x4001),
+                receiver: address(0),
                 chainId: 8453,
+                strategyId: bytes32(0),
+                outputBps: 0,
                 active: true
             })
         );
@@ -295,10 +343,14 @@ contract CompilerEngineTest is Test {
             "ethereum",
             "aave-v3-usdc-mainnet",
             AddressRegistry.VenueConfig({
-                vaultToken: address(0x2002),
+                deliveryToken: address(0x2002),
+                positionToken: address(0),
                 outputSettler: address(0x3002),
                 oracle: address(0x4001),
+                receiver: address(0),
                 chainId: 1,
+                strategyId: bytes32(0),
+                outputBps: 0,
                 active: true
             })
         );

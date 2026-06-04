@@ -3,10 +3,14 @@ pragma solidity ^0.8.24;
 
 contract AddressRegistry {
     struct VenueConfig {
-        address vaultToken;
+        address deliveryToken;
+        address positionToken;
         address outputSettler;
         address oracle;
+        address receiver;
         uint256 chainId;
+        bytes32 strategyId;
+        uint16 outputBps;
         bool active;
     }
 
@@ -42,6 +46,11 @@ contract AddressRegistry {
         VenueConfig calldata config
     ) external onlyOwner {
         require(config.chainId != 0, "Zero chain");
+        require(config.outputBps <= 10_000, "Invalid output bps");
+        if (config.receiver != address(0)) {
+            require(config.positionToken != address(0), "Zero position token");
+            require(config.strategyId != bytes32(0), "Zero strategy");
+        }
         venues[_venueKey(chainName, poolId)] = config;
         emit VenueSet(chainName, poolId, config);
     }

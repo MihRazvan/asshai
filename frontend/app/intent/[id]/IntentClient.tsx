@@ -60,7 +60,7 @@ const standardOrderAbi = [
           { name: "token", type: "bytes32" },
           { name: "amount", type: "uint256" },
           { name: "recipient", type: "bytes32" },
-          { name: "call", type: "bytes" },
+          { name: "callbackData", type: "bytes" },
           { name: "context", type: "bytes" },
         ],
       },
@@ -83,7 +83,7 @@ type StandardOrder = {
     token: Hex;
     amount: bigint;
     recipient: Hex;
-    call: Hex;
+    callbackData: Hex;
     context: Hex;
   }[];
 };
@@ -241,6 +241,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
                 <li key={`${output.chainId}-${output.token}-${index}`}>
                   chain {output.chainId.toString()} token {bytes32ToAddress(output.token)}:{" "}
                   {formatUnits(output.amount, 6)} to {bytes32ToAddress(output.recipient)}
+                  {output.callbackData !== "0x" ? " with callback" : ""}
                 </li>
               ))}
             </ul>

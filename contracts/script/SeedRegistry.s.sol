@@ -16,6 +16,8 @@ contract SeedRegistry is Script {
     address internal constant ETHEREUM_AUSDC = 0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c;
     address internal constant BASE_AUSDC = 0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB;
     address internal constant ARBITRUM_AUSDC = 0x724dc807b04555b71ed48a6896b6F41593b8C637;
+    bytes32 internal constant AAVE_V3_USDC_BASE_SUPPLY = keccak256("aave-v3-usdc-base:supply");
+    uint16 internal constant CALLBACK_OUTPUT_BPS = 9_800;
 
     uint256 internal constant ETHEREUM_CHAIN_ID = 1;
     uint256 internal constant BASE_CHAIN_ID = 8453;
@@ -23,6 +25,7 @@ contract SeedRegistry is Script {
 
     function run() external {
         AddressRegistry registry = AddressRegistry(vm.envAddress("ADDRESS_REGISTRY_ADDRESS"));
+        address baseYieldReceiver = vm.envOr("BASE_YIELD_RECEIVER_ADDRESS", address(0));
 
         vm.startBroadcast();
 
@@ -38,10 +41,14 @@ contract SeedRegistry is Script {
             "ethereum",
             "aave-v3-usdc-mainnet",
             AddressRegistry.VenueConfig({
-                vaultToken: ETHEREUM_AUSDC,
+                deliveryToken: ETHEREUM_AUSDC,
+                positionToken: address(0),
                 outputSettler: OUTPUT_SETTLER,
                 oracle: POLYMER_ORACLE_MAINNET,
+                receiver: address(0),
                 chainId: ETHEREUM_CHAIN_ID,
+                strategyId: bytes32(0),
+                outputBps: 0,
                 active: true
             })
         );
@@ -49,10 +56,14 @@ contract SeedRegistry is Script {
             "base",
             "aave-v3-usdc-base",
             AddressRegistry.VenueConfig({
-                vaultToken: BASE_USDC,
+                deliveryToken: BASE_USDC,
+                positionToken: BASE_AUSDC,
                 outputSettler: OUTPUT_SETTLER,
                 oracle: POLYMER_ORACLE_MAINNET,
+                receiver: baseYieldReceiver,
                 chainId: BASE_CHAIN_ID,
+                strategyId: baseYieldReceiver == address(0) ? bytes32(0) : AAVE_V3_USDC_BASE_SUPPLY,
+                outputBps: baseYieldReceiver == address(0) ? 0 : CALLBACK_OUTPUT_BPS,
                 active: true
             })
         );
@@ -60,10 +71,14 @@ contract SeedRegistry is Script {
             "arbitrum",
             "aave-v3-usdc-arb",
             AddressRegistry.VenueConfig({
-                vaultToken: ARBITRUM_AUSDC,
+                deliveryToken: ARBITRUM_AUSDC,
+                positionToken: address(0),
                 outputSettler: OUTPUT_SETTLER,
                 oracle: POLYMER_ORACLE_MAINNET,
+                receiver: address(0),
                 chainId: ARBITRUM_CHAIN_ID,
+                strategyId: bytes32(0),
+                outputBps: 0,
                 active: true
             })
         );
