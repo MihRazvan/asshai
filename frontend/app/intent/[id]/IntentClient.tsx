@@ -7,12 +7,11 @@ import {
   formatUnits,
   Hex,
   isHex,
-  isAddressEqual,
-  padHex,
 } from "viem";
 import {
   useAccount,
   useReadContract,
+  useSendTransaction,
   useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -22,8 +21,6 @@ import {
   erc20Abi,
   goalRegistryAbi,
   goalRegistryAddress,
-  inputSettlerEscrowAbi,
-  inputSettlerEscrowAddress,
   intentStoreAbi,
   intentStoreAddress,
   receiptLogAbi,
@@ -121,53 +118,60 @@ function bytes32ToAddress(value: Hex) {
   return `0x${value.slice(-40)}` as Hex;
 }
 
-function toInteroperableAddress(chainId: bigint, address: Hex) {
-  const chainHex = chainId.toString(16).padStart(4, "0");
-  return `0x0001000002${chainHex}14${address.slice(2)}`;
-}
-
-function buildExclusiveLimitContext(exclusiveFor: Hex, exclusiveUntil: number) {
-  const solver = padHex(exclusiveFor, { size: 32 }).slice(2);
-  const timestamp = exclusiveUntil.toString(16).padStart(8, "0").slice(-8);
-  return `0xe0${solver}${timestamp}` as Hex;
-}
-
-function quoteExclusiveUntil(quoteValidUntil: unknown, fillDeadline: number) {
-  const now = Math.floor(Date.now() / 1000);
-  const fallbackUntil = Math.min(now + 120, fillDeadline - 1);
-  const validUntil = typeof quoteValidUntil === "number" ? quoteValidUntil : Number(quoteValidUntil);
-
-  if (!Number.isFinite(validUntil) || validUntil <= now) {
-    return fallbackUntil;
+function decodeYieldAction(callbackData: Hex) {
+  if (callbackData === "0x") {
+    return undefined;
   }
 
-  return Math.min(validUntil, fillDeadline - 1);
+  try {
+    const [goalId, beneficiary, deliveryToken, positionToken, strategyId, minAmount] = decodeAbiParameters(
+      [
+        { name: "goalId", type: "uint256" },
+        { name: "beneficiary", type: "address" },
+        { name: "deliveryToken", type: "address" },
+        { name: "positionToken", type: "address" },
+        { name: "strategyId", type: "bytes32" },
+        { name: "minAmount", type: "uint256" },
+      ],
+      callbackData,
+    );
+
+    return { goalId, beneficiary, deliveryToken, positionToken, strategyId, minAmount };
+  } catch {
+    return undefined;
+  }
 }
 
-function buildQuoteRequest(order: StandardOrder) {
-  const output = order.outputs[0];
+function finalOutputToken(output: StandardOrder["outputs"][number]) {
+  return decodeYieldAction(output.callbackData)?.positionToken ?? bytes32ToAddress(output.token);
+}
 
-  return {
-    user: toInteroperableAddress(order.originChainId, order.user),
-    intent: {
-      intentType: "oif-swap",
-      inputs: order.inputs.map(([token, amount]) => ({
-        user: toInteroperableAddress(order.originChainId, order.user),
-        asset: toInteroperableAddress(order.originChainId, tokenIdentifierToAddress(token)),
-        amount: amount.toString(),
-      })),
-      outputs: [
-        {
-          receiver: toInteroperableAddress(output.chainId, bytes32ToAddress(output.recipient)),
-          asset: toInteroperableAddress(output.chainId, bytes32ToAddress(output.token)),
-          amount: output.amount.toString(),
-          callbackData: output.callbackData,
-        },
-      ],
-      swapType: "exact-input",
-    },
-    supportedTypes: ["oif-escrow-v0"],
+type LifiQuote = {
+  tool?: string;
+  estimate?: {
+    toAmount?: string;
+    toAmountMin?: string;
   };
+  transactionRequest?: {
+    to?: Hex;
+    data?: Hex;
+    value?: string;
+    chainId?: number;
+    gasLimit?: string;
+  };
+  includedSteps?: readonly {
+    tool?: string;
+    type?: string;
+  }[];
+  message?: string;
+};
+
+function bigintFromRequestValue(value: string | undefined) {
+  if (!value) {
+    return 0n;
+  }
+
+  return BigInt(value);
 }
 
 export function IntentClient({ goalId }: { goalId: string }) {
@@ -176,11 +180,11 @@ export function IntentClient({ goalId }: { goalId: string }) {
   const { switchChain } = useSwitchChain();
   const [lifiStatus, setLifiStatus] = useState<string>();
   const [quoteStatus, setQuoteStatus] = useState<string>();
+  const [lifiQuote, setLifiQuote] = useState<LifiQuote>();
+  const [executionStatus, setExecutionStatus] = useState<string>();
   const { data: approveHash, error: approveError, isPending: isApprovePending, writeContract: approve } =
     useWriteContract();
-  const { data: openHash, error: openError, isPending: isOpenPending, writeContract: openOrder } =
-    useWriteContract();
-  const [orderId, setOrderId] = useState<Hex | undefined>();
+  const { data: routeHash, error: routeError, isPending: isRoutePending, sendTransaction } = useSendTransaction();
 
   const { data: goal } = useReadContract({
     address: goalRegistryAddress,
@@ -216,82 +220,99 @@ export function IntentClient({ goalId }: { goalId: string }) {
   });
 
   const order = useMemo(() => decodeOrder(encodedIntent as Hex | undefined), [encodedIntent]);
-  const openReceipt = useWaitForTransactionReceipt({ hash: openHash });
+  const routeReceipt = useWaitForTransactionReceipt({ hash: routeHash });
 
   useEffect(() => {
-    const receipt = openReceipt.data;
-    if (!receipt || orderId) {
-      return;
-    }
+    if (!routeHash) return;
 
-    const openLog = receipt.logs.find(
-      (log) =>
-        isAddressEqual(log.address, inputSettlerEscrowAddress) &&
-        log.topics[1],
-    );
-    if (openLog?.topics[1]) {
-      setOrderId(openLog.topics[1]);
+    const timer = window.setInterval(() => {
+      void checkComposerStatus(routeHash);
+    }, 5_000);
+
+    void checkComposerStatus(routeHash);
+
+    return () => window.clearInterval(timer);
+  }, [routeHash, order]);
+
+  useEffect(() => {
+    if (routeReceipt.data?.status === "success") {
+      setExecutionStatus("Source transaction confirmed. Waiting for destination execution...");
     }
-  }, [openReceipt.data, orderId]);
+  }, [routeReceipt.data?.status]);
 
   const input = order?.inputs[0];
   const inputToken = input ? tokenIdentifierToAddress(input[0]) : undefined;
   const inputAmount = input?.[1] ?? 0n;
+  const output = order?.outputs[0];
+  const outputToken = output ? finalOutputToken(output) : undefined;
+  const outputChainId = output ? Number(output.chainId) : undefined;
   const originChainId = order ? Number(order.originChainId) : undefined;
   const mustSwitchToOrigin = Boolean(originChainId && chainId !== originChainId);
   const orderExpired = order ? Date.now() >= order.expires * 1000 : false;
   const status = goal ? goalStatuses[goal.status] : "Loading";
+  const routeTx = lifiQuote?.transactionRequest;
+  const routeSpender = routeTx?.to;
 
-  async function checkStatus() {
-    if (!orderId) {
+  async function requestComposerQuote() {
+    if (!order || !inputToken || !outputToken || !originChainId || !outputChainId) {
       return;
     }
 
-    const response = await fetch(`/api/order?onChainOrderId=${orderId}`);
-    const body = await response.json();
-    setLifiStatus(body?.meta?.orderStatus ?? JSON.stringify(body));
-  }
+    setQuoteStatus("Requesting LI.FI Composer quote...");
+    setLifiQuote(undefined);
+    setExecutionStatus(undefined);
+    setLifiStatus(undefined);
 
-  async function openQuotedOrder() {
-    if (!order) {
-      return;
-    }
-
-    setQuoteStatus("Requesting LI.FI quote...");
-    const response = await fetch("/api/quote", {
+    const response = await fetch("/api/lifi/quote", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(buildQuoteRequest(order)),
+      body: JSON.stringify({
+        fromChain: originChainId,
+        toChain: outputChainId,
+        fromToken: inputToken,
+        toToken: outputToken,
+        fromAmount: inputAmount.toString(),
+        fromAddress: order.user,
+      }),
     });
     const body = await response.json();
-    const quote = body?.quotes?.[0];
-    const exclusiveFor = quote?.metadata?.exclusiveFor as Hex | undefined;
 
-    if (!response.ok || !exclusiveFor || !isHex(exclusiveFor)) {
-      setQuoteStatus(`Quote failed or did not return exclusive solver: ${JSON.stringify(body)}`);
+    if (!response.ok || !body?.transactionRequest?.to || !body?.transactionRequest?.data) {
+      setQuoteStatus(`Quote failed: ${body?.message ?? JSON.stringify(body)}`);
       return;
     }
 
-    const patchedOrder = {
-      ...order,
-      outputs: order.outputs.map((output, index) =>
-        index === 0
-          ? {
-              ...output,
-              context: buildExclusiveLimitContext(exclusiveFor, quoteExclusiveUntil(quote.validUntil, order.fillDeadline)),
-            }
-          : output,
-      ),
-    };
+    setLifiQuote(body);
+    setQuoteStatus(
+      `Quote ready via ${body.tool ?? "LI.FI"}: ${formatUnits(BigInt(body.estimate?.toAmount ?? "0"), 6)} output tokens.`,
+    );
+  }
 
-    setQuoteStatus(`Quote ${quote.quoteId ?? ""} reserved solver ${exclusiveFor}; opening quote-context order.`);
-    setOrderId(undefined);
-    setLifiStatus(undefined);
-    openOrder({
-      address: inputSettlerEscrowAddress,
-      abi: inputSettlerEscrowAbi,
-      functionName: "open",
-      args: [patchedOrder],
+  async function checkComposerStatus(txHash = routeHash) {
+    if (!txHash || !originChainId || !outputChainId) {
+      return;
+    }
+
+    const response = await fetch(`/api/lifi/status?txHash=${txHash}&fromChain=${originChainId}&toChain=${outputChainId}`);
+    const body = await response.json();
+
+    setLifiStatus(
+      body?.status
+        ? `${body.status}${body.substatus ? ` / ${body.substatus}` : ""}${body.receiving?.amount ? ` (${formatUnits(BigInt(body.receiving.amount), 6)} ${body.receiving?.token?.symbol ?? ""})` : ""}`
+        : body?.message ?? JSON.stringify(body),
+    );
+  }
+
+  function executeComposerRoute() {
+    if (!routeTx?.to || !routeTx.data || !originChainId) {
+      return;
+    }
+
+    setExecutionStatus("Submitting LI.FI route transaction...");
+    sendTransaction({
+      to: routeTx.to,
+      data: routeTx.data,
+      value: bigintFromRequestValue(routeTx.value),
       chainId: originChainId,
     });
   }
@@ -347,9 +368,9 @@ export function IntentClient({ goalId }: { goalId: string }) {
       </section>
 
       <section>
-        <h2>Open Escrow Order</h2>
-        <p>LI.FI standard escrow flow requires approval, then an origin-chain call to InputSettlerEscrow.open.</p>
-        {orderExpired ? <p>This order is expired. Compile a fresh goal before opening escrow.</p> : null}
+        <h2>Execute With LI.FI Composer</h2>
+        <p>LI.FI Composer uses the compiled route to bridge the input asset and complete the destination yield action.</p>
+        {orderExpired ? <p>This compiled route is expired. Compile a fresh goal before execution.</p> : null}
         {mustSwitchToOrigin && originChainId ? (
           <button type="button" onClick={() => switchChain({ chainId: originChainId })}>
             Switch to origin chain {originChainId}
@@ -357,14 +378,30 @@ export function IntentClient({ goalId }: { goalId: string }) {
         ) : null}
         <button
           type="button"
-          disabled={!isConnected || !order || !inputToken || isApprovePending || mustSwitchToOrigin || orderExpired}
+          disabled={!isConnected || !order || !inputToken || !outputToken || mustSwitchToOrigin || orderExpired}
+          onClick={requestComposerQuote}
+        >
+          Request LI.FI Composer quote
+        </button>
+        <button
+          type="button"
+          disabled={
+            !isConnected ||
+            !order ||
+            !inputToken ||
+            !routeSpender ||
+            isApprovePending ||
+            mustSwitchToOrigin ||
+            orderExpired
+          }
           onClick={() =>
             inputToken &&
+            routeSpender &&
             approve({
               address: inputToken,
               abi: erc20Abi,
               functionName: "approve",
-              args: [inputSettlerEscrowAddress, inputAmount],
+              args: [routeSpender, inputAmount],
               chainId: originChainId,
             })
           }
@@ -373,23 +410,26 @@ export function IntentClient({ goalId }: { goalId: string }) {
         </button>
         <button
           type="button"
-          disabled={!isConnected || !order || !encodedIntent || isOpenPending || mustSwitchToOrigin || orderExpired}
-          onClick={openQuotedOrder}
+          disabled={!isConnected || !routeTx?.to || !routeTx.data || isRoutePending || mustSwitchToOrigin || orderExpired}
+          onClick={executeComposerRoute}
         >
-          {isOpenPending ? "Opening..." : "Open escrow order"}
+          {isRoutePending ? "Executing..." : "Execute LI.FI route"}
         </button>
         {approveHash ? <p>Approval tx: {approveHash}</p> : null}
-        {openHash ? <p>Open tx: {openHash}</p> : null}
+        {routeHash ? <p>Route tx: {routeHash}</p> : null}
         {quoteStatus ? <p>Quote status: {quoteStatus}</p> : null}
-        {orderId ? <p>On-chain order ID: {orderId}</p> : null}
+        {lifiQuote?.includedSteps?.length ? (
+          <p>LI.FI steps: {lifiQuote.includedSteps.map((step) => step.tool ?? step.type ?? "step").join(" -> ")}</p>
+        ) : null}
+        {executionStatus ? <p>Execution status: {executionStatus}</p> : null}
         {lifiStatus ? <p>LI.FI status: {lifiStatus}</p> : null}
-        {orderId ? (
-          <button type="button" onClick={checkStatus}>
+        {routeHash ? (
+          <button type="button" onClick={() => checkComposerStatus()}>
             Check LI.FI status
           </button>
         ) : null}
         {approveError ? <p>Approval error: {approveError.message}</p> : null}
-        {openError ? <p>Open error: {openError.message}</p> : null}
+        {routeError ? <p>Route error: {routeError.message}</p> : null}
       </section>
 
       <section>
