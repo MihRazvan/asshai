@@ -132,6 +132,18 @@ function buildExclusiveLimitContext(exclusiveFor: Hex, exclusiveUntil: number) {
   return `0xe0${solver}${timestamp}` as Hex;
 }
 
+function quoteExclusiveUntil(quoteValidUntil: unknown, fillDeadline: number) {
+  const now = Math.floor(Date.now() / 1000);
+  const fallbackUntil = Math.min(now + 120, fillDeadline - 1);
+  const validUntil = typeof quoteValidUntil === "number" ? quoteValidUntil : Number(quoteValidUntil);
+
+  if (!Number.isFinite(validUntil) || validUntil <= now) {
+    return fallbackUntil;
+  }
+
+  return Math.min(validUntil, fillDeadline - 1);
+}
+
 function buildQuoteRequest(order: StandardOrder) {
   const output = order.outputs[0];
 
@@ -266,7 +278,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
         index === 0
           ? {
               ...output,
-              context: buildExclusiveLimitContext(exclusiveFor, order.fillDeadline),
+              context: buildExclusiveLimitContext(exclusiveFor, quoteExclusiveUntil(quote.validUntil, order.fillDeadline)),
             }
           : output,
       ),
