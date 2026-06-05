@@ -8,6 +8,7 @@ import {
   Hex,
   isHex,
   isAddressEqual,
+  padHex,
 } from "viem";
 import {
   useAccount,
@@ -120,11 +121,49 @@ function bytes32ToAddress(value: Hex) {
   return `0x${value.slice(-40)}` as Hex;
 }
 
+function toInteroperableAddress(chainId: bigint, address: Hex) {
+  const chainHex = chainId.toString(16).padStart(4, "0");
+  return `0x0001000002${chainHex}14${address.slice(2)}`;
+}
+
+function buildExclusiveLimitContext(exclusiveFor: Hex, exclusiveUntil: number) {
+  const solver = padHex(exclusiveFor, { size: 32 }).slice(2);
+  const timestamp = exclusiveUntil.toString(16).padStart(8, "0").slice(-8);
+  return `0xe0${solver}${timestamp}` as Hex;
+}
+
+function buildQuoteRequest(order: StandardOrder) {
+  const output = order.outputs[0];
+
+  return {
+    user: toInteroperableAddress(order.originChainId, order.user),
+    intent: {
+      intentType: "oif-swap",
+      inputs: order.inputs.map(([token, amount]) => ({
+        user: toInteroperableAddress(order.originChainId, order.user),
+        asset: toInteroperableAddress(order.originChainId, tokenIdentifierToAddress(token)),
+        amount: amount.toString(),
+      })),
+      outputs: [
+        {
+          receiver: toInteroperableAddress(output.chainId, bytes32ToAddress(output.recipient)),
+          asset: toInteroperableAddress(output.chainId, bytes32ToAddress(output.token)),
+          amount: output.amount.toString(),
+          callbackData: output.callbackData,
+        },
+      ],
+      swapType: "exact-input",
+    },
+    supportedTypes: ["oif-escrow-v0"],
+  };
+}
+
 export function IntentClient({ goalId }: { goalId: string }) {
   const parsedGoalId = BigInt(goalId);
   const { chainId, isConnected } = useAccount();
   const { switchChain } = useSwitchChain();
   const [lifiStatus, setLifiStatus] = useState<string>();
+  const [quoteStatus, setQuoteStatus] = useState<string>();
   const { data: approveHash, error: approveError, isPending: isApprovePending, writeContract: approve } =
     useWriteContract();
   const { data: openHash, error: openError, isPending: isOpenPending, writeContract: openOrder } =
@@ -199,6 +238,50 @@ export function IntentClient({ goalId }: { goalId: string }) {
     const response = await fetch(`/api/order?onChainOrderId=${orderId}`);
     const body = await response.json();
     setLifiStatus(body?.meta?.orderStatus ?? JSON.stringify(body));
+  }
+
+  async function openQuotedOrder() {
+    if (!order) {
+      return;
+    }
+
+    setQuoteStatus("Requesting LI.FI quote...");
+    const response = await fetch("/api/quote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(buildQuoteRequest(order)),
+    });
+    const body = await response.json();
+    const quote = body?.quotes?.[0];
+    const exclusiveFor = quote?.metadata?.exclusiveFor as Hex | undefined;
+
+    if (!response.ok || !exclusiveFor || !isHex(exclusiveFor)) {
+      setQuoteStatus(`Quote failed or did not return exclusive solver: ${JSON.stringify(body)}`);
+      return;
+    }
+
+    const patchedOrder = {
+      ...order,
+      outputs: order.outputs.map((output, index) =>
+        index === 0
+          ? {
+              ...output,
+              context: buildExclusiveLimitContext(exclusiveFor, order.fillDeadline),
+            }
+          : output,
+      ),
+    };
+
+    setQuoteStatus(`Quote ${quote.quoteId ?? ""} reserved solver ${exclusiveFor}; opening quote-context order.`);
+    setOrderId(undefined);
+    setLifiStatus(undefined);
+    openOrder({
+      address: inputSettlerEscrowAddress,
+      abi: inputSettlerEscrowAbi,
+      functionName: "open",
+      args: [patchedOrder],
+      chainId: originChainId,
+    });
   }
 
   return (
@@ -279,24 +362,13 @@ export function IntentClient({ goalId }: { goalId: string }) {
         <button
           type="button"
           disabled={!isConnected || !order || !encodedIntent || isOpenPending || mustSwitchToOrigin || orderExpired}
-          onClick={() => {
-            if (!order) {
-              return;
-            }
-
-            openOrder({
-              address: inputSettlerEscrowAddress,
-              abi: inputSettlerEscrowAbi,
-              functionName: "open",
-              args: [order],
-              chainId: originChainId,
-            });
-          }}
+          onClick={openQuotedOrder}
         >
           {isOpenPending ? "Opening..." : "Open escrow order"}
         </button>
         {approveHash ? <p>Approval tx: {approveHash}</p> : null}
         {openHash ? <p>Open tx: {openHash}</p> : null}
+        {quoteStatus ? <p>Quote status: {quoteStatus}</p> : null}
         {orderId ? <p>On-chain order ID: {orderId}</p> : null}
         {lifiStatus ? <p>LI.FI status: {lifiStatus}</p> : null}
         {orderId ? (
