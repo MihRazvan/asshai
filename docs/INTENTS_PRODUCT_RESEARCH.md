@@ -9,7 +9,7 @@ This memo originally recommended an intent-native receiver callback path. Follow
 What shipped:
 
 - Somnia compiles fuzzy goals into a StandardOrder-shaped, auditable execution plan.
-- `CompilerEngineV2` uses JSON API data plus one LLM pool-selection step, then deterministic Solidity encoding.
+- `CompilerEngineV3` uses JSON API data plus one LLM decision-object step, then deterministic Solidity encoding.
 - LI.FI Composer is the active v1 execution backend because it reliably returns an executable route transaction.
 - Raw LI.FI Intents escrow remains a research/future backend. A simple raw order reached `Settled`, but callback orders to `AsshaiYieldReceiver` stayed at `Signed` and were not reliably filled by public solvers.
 

@@ -9,13 +9,13 @@ This repository follows `BUILD_PLAN.md` as the source of truth.
 ## Somnia testnet contracts
 
 - GoalRegistry: `0x3d37cDE79CCcA78334972e6bf1d351f607aF2ca6`
-- CompilerEngineV2: `0x9Aa2AD7268E086873bddd6fE19C4199577Cd4df7`
+- CompilerEngineV3: `0x0afe3aDbd8289070Eea637dFd41b34a8fb37F591`
 - ReceiptLog: `0xCaf26d33E74cc952284AA3aA71a67DBe69deEFC1`
 - IntentStore: `0x0D0891Ae2733E3D8644D1044F497Af4bb63404ea`
 - AddressRegistry: `0x146bd5510D7B488d936b23040062e2ca8Fc26E76`
 - StandardOrderEncoder: `0xB9084F50D6F75006953F69741762548990B334E7`
 
-`CompilerEngine.sol` is the legacy three-agent compiler kept for tests/research. The live stack points to `CompilerEngineV2`, which uses one JSON API agent call, one LLM pool-selection call, and deterministic Solidity encoding.
+`CompilerEngine.sol` is the legacy three-agent compiler kept for tests/research. `CompilerEngineV2` is the single-pool compiler. The live stack points to `CompilerEngineV3`, which uses one JSON API agent call, one LLM decision-object call, and deterministic Solidity encoding.
 
 ## V1 product envelope
 
@@ -37,7 +37,7 @@ The deterministic policy layer lives in `frontend/lib/goal-policy.json` and is e
 
 1. Deploy or verify the core Somnia contracts: `GoalRegistry`, `ReceiptLog`, `IntentStore`, `AddressRegistry`, and `StandardOrderEncoder`.
 2. Seed `AddressRegistry` with verified LI.FI/OIF addresses and supported venues using `contracts/script/SeedRegistry.s.sol`.
-3. Deploy `CompilerEngineV2` with `contracts/script/DeployCompilerEngineV2.s.sol`.
+3. Deploy `CompilerEngineV3` with `contracts/script/DeployCompilerEngineV3.s.sol`.
 4. Wire `GoalRegistry`, `ReceiptLog`, and `IntentStore` to the new compiler.
 5. Deploy the frontend and set Vercel env vars to the live contract addresses.
 6. Run quote-only coverage before spending USDC:
@@ -56,7 +56,7 @@ The LLM inference smoke contract is deployed at
 
 ## Compiler data source
 
-`CompilerEngineV2` reads a compact rates payload from `COMPILER_RATES_URL` using
+`CompilerEngineV3` reads a compact rates payload from `COMPILER_RATES_URL` using
 the JSON API agent selector in `COMPILER_RATES_SELECTOR`. The frontend exposes
 the intended normalizer at `/api/yields`; point `COMPILER_RATES_URL` at the
 public deployed app URL before deploying a compiler intended to run live.

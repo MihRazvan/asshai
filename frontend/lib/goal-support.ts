@@ -12,6 +12,8 @@ export type SupportedVenue = {
   executionType: string;
   quoteEndpoint: string;
   callbackRequired: boolean;
+  riskTier: string;
+  riskNotes: string;
   status: string;
 };
 

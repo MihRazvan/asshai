@@ -90,7 +90,8 @@ export default function Home() {
             <ul>
               {goalSupport.supportedVenues.map((venue) => (
                 <li key={venue.poolId}>
-                  {venue.label}: {venue.executionType}, {venue.callbackRequired ? "callback required" : "no callback"}
+                  {venue.label}: {venue.executionType}, risk {venue.riskTier},{" "}
+                  {venue.callbackRequired ? "callback required" : "no callback"}. {venue.riskNotes}
                 </li>
               ))}
             </ul>

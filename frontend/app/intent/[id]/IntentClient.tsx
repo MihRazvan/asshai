@@ -163,6 +163,18 @@ function finalOutputToken(output: StandardOrder["outputs"][number]) {
   return decodeYieldAction(output.callbackData)?.positionToken ?? bytes32ToAddress(output.token);
 }
 
+function tryParseJson(value: string) {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
+function prettyJson(value: unknown) {
+  return JSON.stringify(value, null, 2);
+}
+
 function isCompoundBaseOutput(output: StandardOrder["outputs"][number]) {
   return bytes32ToAddress(output.token).toLowerCase() === BASE_COMPOUND_CUSDCV3.toLowerCase();
 }
@@ -242,6 +254,16 @@ export function IntentClient({ goalId }: { goalId: string }) {
 
   const order = useMemo(() => decodeOrder(encodedIntent as Hex | undefined), [encodedIntent]);
   const routeReceipt = useWaitForTransactionReceipt({ hash: routeHash });
+  const ratesReceipt = receipts?.find((entry) => entry.stepName === "rates_fetched");
+  const decisionReceipt = receipts?.find((entry) => entry.stepName === "decision_built");
+  const selectedReceipt = receipts?.find((entry) => entry.stepName === "candidates_selected");
+  const planReceipt = receipts?.find((entry) => entry.stepName === "plan_built");
+  const ratesText = ratesReceipt ? decodeString(ratesReceipt.data as Hex) : "";
+  const decisionText = decisionReceipt ? decodeString(decisionReceipt.data as Hex) : "";
+  const decisionJson = decisionText ? tryParseJson(decisionText) : undefined;
+  const selectedPoolId = selectedReceipt ? decodeString(selectedReceipt.data as Hex) : "";
+  const planText = planReceipt ? decodeString(planReceipt.data as Hex) : "";
+  const planJson = planText ? tryParseJson(planText) : undefined;
 
   useEffect(() => {
     if (!routeHash) return;
@@ -376,7 +398,26 @@ export function IntentClient({ goalId }: { goalId: string }) {
       </section>
 
       <section>
-        <h2>StandardOrder</h2>
+        <h2>Proof of Reasoning</h2>
+        <h3>User goal</h3>
+        {goal ? <p>{goal.naturalLanguage}</p> : <p>Loading goal...</p>}
+        <h3>Data considered</h3>
+        {ratesText ? <pre>{ratesText}</pre> : <p>Waiting for rates receipt.</p>}
+        <h3>Consensus agent decision</h3>
+        {decisionText ? (
+          <>
+            {selectedPoolId ? <p>Selected pool: {selectedPoolId}</p> : null}
+            <pre>{decisionJson ? prettyJson(decisionJson) : decisionText}</pre>
+          </>
+        ) : (
+          <p>Waiting for decision receipt.</p>
+        )}
+        <h3>Deterministic Solidity plan</h3>
+        {planText ? <pre>{planJson ? prettyJson(planJson) : planText}</pre> : <p>Waiting for plan receipt.</p>}
+      </section>
+
+      <section>
+        <h2>StandardOrder-Shaped Plan</h2>
         {order ? (
           <>
             <p>User: {order.user}</p>
@@ -465,6 +506,15 @@ export function IntentClient({ goalId }: { goalId: string }) {
         ) : null}
         {executionStatus ? <p>Execution status: {executionStatus}</p> : null}
         {lifiStatus ? <p>LI.FI status: {lifiStatus}</p> : null}
+        {routeHash || lifiStatus ? (
+          <section>
+            <h3>Execution proof</h3>
+            {approveHash ? <p>Approval tx: {approveHash}</p> : null}
+            {routeHash ? <p>Route tx: {routeHash}</p> : null}
+            {lifiStatus ? <p>Status: {lifiStatus}</p> : null}
+            {outputToken ? <p>Expected position token: {outputToken}</p> : null}
+          </section>
+        ) : null}
         {routeHash ? (
           <button type="button" onClick={() => checkComposerStatus()}>
             Check LI.FI status

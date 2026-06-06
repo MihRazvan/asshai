@@ -10,6 +10,11 @@ const curatedPools = [
     project: "aave-v3",
     symbol: "USDC",
     lockup: "none",
+    venueType: "blue-chip lending",
+    riskTier: "lowest",
+    riskNotes: "Large established lending market; lower APY but strongest safety profile in v1.",
+    executionVerified: "live",
+    executionPath: "direct LI.FI quote into Base aUSDC",
   },
   {
     poolId: "compound-v3-usdc-base",
@@ -18,6 +23,11 @@ const curatedPools = [
     project: "compound-v3",
     symbol: "USDC",
     lockup: "none",
+    venueType: "blue-chip lending",
+    riskTier: "low",
+    riskNotes: "Established lending market; higher current APY in v1 but contract-call execution path.",
+    executionVerified: "live",
+    executionPath: "LI.FI contract-call quote into Compound V3 Comet.supply",
   },
 ];
 
@@ -53,6 +63,11 @@ export async function GET() {
       `apy=${live?.apy ?? "unknown"}`,
       `tvlUsd=${live?.tvlUsd ?? "unknown"}`,
       `lockup=${pool.lockup}`,
+      `venueType=${pool.venueType}`,
+      `riskTier=${pool.riskTier}`,
+      `riskNotes=${pool.riskNotes}`,
+      `executionVerified=${pool.executionVerified}`,
+      `executionPath=${pool.executionPath}`,
     ].join(",");
   });
 

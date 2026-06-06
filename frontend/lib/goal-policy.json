@@ -35,6 +35,8 @@
       "executionType": "direct-token-route",
       "quoteEndpoint": "/api/lifi/quote",
       "callbackRequired": false,
+      "riskTier": "lowest",
+      "riskNotes": "Large established lending market; lower APY but strongest safety profile in v1.",
       "status": "verified"
     },
     {
@@ -49,6 +51,8 @@
       "executionType": "contract-call-route",
       "quoteEndpoint": "/api/lifi/contract-call-quote",
       "callbackRequired": true,
+      "riskTier": "low",
+      "riskNotes": "Established lending market; higher current APY in v1 but contract-call execution path.",
       "status": "verified"
     }
   ],

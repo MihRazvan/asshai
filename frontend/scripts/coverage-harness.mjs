@@ -396,10 +396,14 @@ async function readCompiled({ publicClient, addresses, goalId }) {
   ]);
 
   const planReceipt = receipts.find((entry) => entry.stepName === "plan_built");
+  const decisionReceipt = receipts.find((entry) => entry.stepName === "decision_built");
+  const selectedReceipt = receipts.find((entry) => entry.stepName === "candidates_selected");
   const planText = planReceipt ? decodeString(planReceipt.data) : "";
+  const decisionText = decisionReceipt ? decodeString(decisionReceipt.data) : "";
+  const selectedPoolId = selectedReceipt ? decodeString(selectedReceipt.data) : "";
   const order = decodeOrder(encodedIntent);
 
-  return { encodedIntent, intentHash, receipts, planText, order };
+  return { encodedIntent, intentHash, receipts, planText, decisionText, selectedPoolId, order };
 }
 
 async function requestLifiQuote({ order }) {
@@ -610,6 +614,8 @@ async function main() {
       });
       result.intentHash = compiled.intentHash;
       result.planText = compiled.planText;
+      result.decisionText = compiled.decisionText;
+      result.selectedPoolId = compiled.selectedPoolId;
       result.receipts = compiled.receipts.map((entry) => ({
         stepName: entry.stepName,
         timestamp: entry.timestamp.toString(),

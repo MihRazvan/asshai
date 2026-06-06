@@ -19,7 +19,7 @@ Intent-based DeFi has become a $50B+ category. ERC-7683 standardizes how intents
 
 Three pieces, clean separation:
 
-1. **On-chain compilation (Somnia).** A set of Solidity contracts that receive natural-language goals, orchestrate chained agent calls, validate the result, and encode a deterministic execution plan using trusted registry data. The live v1 compiler, `CompilerEngineV2`, runs JSON API -> LLM pool selection -> deterministic Solidity plan/encoding. Today the artifact is StandardOrder-shaped because it gives us a strict, auditable schema; the frontend translates it into a LI.FI Composer quote for execution.
+1. **On-chain compilation (Somnia).** A set of Solidity contracts that receive natural-language goals, orchestrate chained agent calls, validate the result, and encode a deterministic execution plan using trusted registry data. The live v1 compiler, `CompilerEngineV3`, runs JSON API -> LLM decision object -> deterministic Solidity plan/encoding. Today the artifact is StandardOrder-shaped because it gives us a strict, auditable schema; the frontend translates it into a LI.FI Composer quote for execution.
 
 2. **Execution (LI.FI API/Composer, with LI.FI Intents compatibility).** The frontend reads the compiled plan and requests an executable `li.quest/v1/quote`. LI.FI Composer can bridge USDC and perform the destination yield action in one route, which we verified live for Arbitrum USDC -> Base aUSDC. Raw LI.FI Intents escrow remains compatible for simple transfer-style outputs, but custom callback outputs were not reliably filled by public solvers in testing, so Composer is the v1 execution backend.
 
@@ -324,11 +324,11 @@ Candidates:
 Selection:
 ```
 
-**Validation:** the callback trims the response and validates it is exactly one supported pool ID. Comma-separated, unknown, or multi-pool responses fail the goal. V2 intentionally does not ask the LLM to allocate percentages.
+**Validation:** the callback extracts `poolId` from the decision object and validates it is exactly one supported pool ID. Unknown or unsupported pools fail the goal. V3 intentionally does not let the LLM allocate percentages or produce execution bytes.
 
 ### Plan Builder (deterministic Solidity, no agent)
 
-`CompilerEngineV2` constructs the plan after the single pool selection:
+`CompilerEngineV3` constructs the plan after the single pool decision:
 
 ```json
 {"allocations":[{"chainName":"<name>","poolId":"<id>","pct":<0-100>}],"reasoning":"<short>"}
@@ -338,7 +338,7 @@ For v1, the compiler always sets `pct = 100` and `chainName = "base"` for the se
 
 ### Encoding (synchronous, no agent)
 
-After the deterministic plan is built, `CompilerEngineV2` calls `StandardOrderEncoder.encode(...)` directly. The result is `abi.encode`d bytes stored in `IntentStore`. `IntentReady` is emitted.
+After the deterministic plan is built, `CompilerEngineV3` calls `StandardOrderEncoder.encode(...)` directly. The result is `abi.encode`d bytes stored in `IntentStore`. `IntentReady` is emitted.
 
 ### Total cost per goal
 
@@ -689,7 +689,7 @@ For each route, record:
 
 Only routes with at least one successful tiny live test should appear in the demo UI.
 
-Latest coverage finding: the live stack is wired to `CompilerEngineV2`, which compiles single-allocation intents only. Quote-only coverage at `0.1 USDC` compiled 5 supported prompts, preflight-skipped 4 unsupported prompts, and got LI.FI quote coverage for all compiled cases. The previous candidate/registry drift around `compound-v3-usdc-base` has been addressed by adding Compound to the registry seed, rates normalizer, frontend execution logic, coverage harness, and deterministic policy layer.
+Latest coverage finding: the live stack is wired to `CompilerEngineV3`, which compiles single-allocation intents only and stores a richer `decision_built` receipt for Proof of Reasoning. Quote-only coverage at `0.1 USDC` compiled 5 supported prompts, preflight-skipped 4 unsupported prompts, and got LI.FI quote coverage for all compiled cases. The previous candidate/registry drift around `compound-v3-usdc-base` has been addressed by adding Compound to the registry seed, rates normalizer, frontend execution logic, coverage harness, and deterministic policy layer.
 
 ---
 

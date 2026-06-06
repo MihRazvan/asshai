@@ -14,7 +14,7 @@ Update: `compound-v3-usdc-base` has now been added as a real Base venue. It uses
 
 Compound live smoke test: `0.098` Base USDC target supplied through LI.FI contract-call Composer. Arbitrum approval `0x37599eb8885681c427011009a33cd8c3093721defa6f87c6324ef362c5b83838`, route tx `0x1f1938696967d60e40df284a34ec3479a962b74ecc409b6ed42d0cd693125732`, status `DONE / COMPLETED`, Base `cUSDCv3` balance delta `0.097997`.
 
-The live Somnia stack is now wired to `CompilerEngineV2` at `0x9Aa2AD7268E086873bddd6fE19C4199577Cd4df7`. V2 intentionally compiles only one allocation per goal. It fetches rates, asks the LLM to pick one verified pool ID, rejects comma-separated or unknown selections, and deterministically encodes a single StandardOrder. This matches the current LI.FI Composer execution path and removes the old 50/50 split risk.
+The live Somnia stack is now wired to `CompilerEngineV3` at `0x0afe3aDbd8289070Eea637dFd41b34a8fb37F591`. V3 intentionally compiles only one allocation per goal. It fetches rates, asks the LLM for a constrained decision object, extracts and validates one verified pool ID, stores the decision as a `decision_built` receipt, and deterministically encodes a single StandardOrder-shaped plan. This matches the current LI.FI Composer execution path and turns the receipt trail into a Proof of Reasoning artifact.
 
 The app now has a deterministic policy layer before `postGoal`. The policy lives in `frontend/lib/goal-policy.json` and is consumed by both the Next.js UI and the Node coverage harness. It exposes the supported source, StandardOrder shape, verified venues, LI.FI quote mode, compiler constraints, and unsupported-goal reasons. The same decision is also available through `GET/POST /api/goal-policy`.
 
@@ -49,7 +49,7 @@ The preflight support classifier now blocks conditional automation, split alloca
 
 The previous candidate/registry drift around `compound-v3-usdc-base` has been addressed in code, live registry, and production `/api/yields`.
 
-The previous multi-allocation blocker is resolved in `CompilerEngineV2`. The compiler now treats the LLM as a single-choice selector, not an allocator. Multi-output goals are still product-unsupported, but they are rejected before execution rather than compiled into partially executable orders.
+The previous multi-allocation blocker is resolved in `CompilerEngineV3`. The compiler now treats the LLM as a single-decision reasoner, not an allocator. Multi-output goals are still product-unsupported, but they are rejected before execution rather than compiled into partially executable orders.
 
 Unsupported goals should continue to be caught before the agent chain where possible. The frontend/server preflight guard is currently the product safety layer for unsupported tokens, destinations, conditional automation, and multi-route requests.
 
