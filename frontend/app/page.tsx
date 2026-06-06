@@ -1,10 +1,11 @@
 "use client";
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { parseEther, parseEventLogs, parseUnits } from "viem";
 import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { goalRegistryAbi, goalRegistryAddress } from "@/lib/contracts";
+import { classifyGoalSupport } from "@/lib/goal-support";
 
 const arbitrumUsdc = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
 
@@ -14,6 +15,7 @@ export default function Home() {
   const receipt = useWaitForTransactionReceipt({ hash });
   const [goal, setGoal] = useState("");
   const [goalId, setGoalId] = useState<bigint>();
+  const goalSupport = useMemo(() => classifyGoalSupport(goal), [goal]);
 
   useEffect(() => {
     if (!receipt.data) {
@@ -32,6 +34,10 @@ export default function Home() {
 
   function submitGoal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!goalSupport.supported) {
+      return;
+    }
+
     writeContract({
       address: goalRegistryAddress,
       abi: goalRegistryAbi,
@@ -61,7 +67,11 @@ export default function Home() {
           placeholder="maximize my USDC yield, 7-day lockup max, low risk"
           required
         />
-        <button type="submit" disabled={!isConnected || isPending}>
+        {goal && !goalSupport.supported ? <p>Unsupported: {goalSupport.reason}</p> : null}
+        {goalSupport.warnings.map((warning) => (
+          <p key={warning}>Warning: {warning}</p>
+        ))}
+        <button type="submit" disabled={!isConnected || isPending || !goalSupport.supported}>
           {isPending ? "Submitting..." : "Submit goal"}
         </button>
       </form>
