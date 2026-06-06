@@ -12,6 +12,8 @@ Execution mode: quote-only. No USDC routes were executed. Each Somnia compilatio
 
 Update: `compound-v3-usdc-base` has now been added as a real Base venue. It uses LI.FI's contract-call Composer endpoint: bridge USDC to Base, then call Compound V3 Comet `supply(USDC, amount)`. The live Somnia registry is seeded and the production `/api/yields` endpoint exposes both Aave and Compound.
 
+Compound live smoke test: `0.098` Base USDC target supplied through LI.FI contract-call Composer. Arbitrum approval `0x37599eb8885681c427011009a33cd8c3093721defa6f87c6324ef362c5b83838`, route tx `0x1f1938696967d60e40df284a34ec3479a962b74ecc409b6ed42d0cd693125732`, status `DONE / COMPLETED`, Base `cUSDCv3` balance delta `0.097997`.
+
 The live Somnia stack is now wired to `CompilerEngineV2` at `0x9Aa2AD7268E086873bddd6fE19C4199577Cd4df7`. V2 intentionally compiles only one allocation per goal. It fetches rates, asks the LLM to pick one verified pool ID, rejects comma-separated or unknown selections, and deterministically encodes a single StandardOrder. This matches the current LI.FI Composer execution path and removes the old 50/50 split risk.
 
 The app now has a deterministic policy layer before `postGoal`. The policy lives in `frontend/lib/goal-policy.json` and is consumed by both the Next.js UI and the Node coverage harness. It exposes the supported source, StandardOrder shape, verified venues, LI.FI quote mode, compiler constraints, and unsupported-goal reasons. The same decision is also available through `GET/POST /api/goal-policy`.
@@ -39,7 +41,7 @@ Totals:
 
 ## Key Findings
 
-The current executable product envelope is narrow but real: fuzzy USDC yield goals can now map to `aave-v3-usdc-base` or `compound-v3-usdc-base`. Compound is registry-backed and Composer-quoteable through LI.FI's contract-call route.
+The current executable product envelope is narrow but real: fuzzy USDC yield goals can now map to `aave-v3-usdc-base` or `compound-v3-usdc-base`. Both Aave and Compound have live execution proof. Compound is registry-backed and executable through LI.FI's contract-call route.
 
 At `0.1 USDC`, LI.FI quotes are executable but fee-inefficient. The quote output was around `0.0723 aBasUSDC` for `0.1 USDC`, mostly because small cross-chain routes have fixed costs. For demo-quality execution, prefer `1 USDC` or larger, while keeping harness quote tests at `0.1 USDC`.
 

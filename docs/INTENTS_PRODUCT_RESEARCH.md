@@ -2,18 +2,33 @@
 
 This memo records the decision basis for moving Asshai from a working demo into a product-shaped v1. It focuses on LI.FI Intents, Open Intents Framework contracts, ERC-7683, callback execution, and stablecoin yield execution.
 
+## June 6 update - shipped v1 path
+
+This memo originally recommended an intent-native receiver callback path. Follow-up live testing changed the decision.
+
+What shipped:
+
+- Somnia compiles fuzzy goals into a StandardOrder-shaped, auditable execution plan.
+- `CompilerEngineV2` uses JSON API data plus one LLM pool-selection step, then deterministic Solidity encoding.
+- LI.FI Composer is the active v1 execution backend because it reliably returns an executable route transaction.
+- Raw LI.FI Intents escrow remains a research/future backend. A simple raw order reached `Settled`, but callback orders to `AsshaiYieldReceiver` stayed at `Signed` and were not reliably filled by public solvers.
+
+Current recommendation: demo and productize the Composer-backed path. Keep `AsshaiYieldReceiver` and raw LI.FI Intents callback work as future infrastructure for partner-solver or allowlisted-solver scenarios, not the hackathon-critical path.
+
+Follow-up verification: the Composer-backed path now has live proof for both Base Aave and Base Compound. The Compound contract-call smoke routed Arbitrum USDC to Base and called Compound V3 `Comet.supply`, producing a positive `0.097997 cUSDCv3` balance delta for the user wallet.
+
 ## Current Proof Point
 
 We have already proven the core loop:
 
 - User posts a fuzzy goal to Somnia.
 - Somnia agents fetch rates, filter candidates, build a plan, and store receipts.
-- Somnia contracts encode a LI.FI/OIF `StandardOrder`.
-- User opens `InputSettlerEscrow` on Arbitrum with 1 USDC.
-- LI.FI solver fills Arbitrum USDC -> Base USDC.
-- Order reaches `Settled`.
+- Somnia contracts encode a LI.FI/OIF StandardOrder-shaped plan.
+- Frontend decodes that plan and requests a LI.FI Composer route.
+- User approves and executes one origin-chain route transaction.
+- LI.FI routes Arbitrum USDC into a Base yield position.
 
-The key successful route was Arbitrum USDC (`0xaf88...5831`) to Base USDC (`0x8335...2913`), opened as on-chain escrow through `InputSettlerEscrow.open(StandardOrder)`.
+The raw LI.FI Intents proof point still matters: a simple Arbitrum USDC -> Base USDC order opened through `InputSettlerEscrow.open(StandardOrder)` reached `Settled`. But the stronger shipped v1 proof point is Composer execution into Base Aave yield, because it performs the user-facing yield action reliably.
 
 ## Research Findings
 
@@ -64,7 +79,7 @@ Conclusion: the encoder must not blindly set stablecoin output equal to input am
 
 The conservative haircut is simpler and more compatible with on-chain compilation. Quote integration is a later reliability upgrade.
 
-### 5. LI.FI Earn/Composer is powerful, but it is not our core thesis
+### 5. LI.FI Earn/Composer is powerful and became the v1 execution backend
 
 LI.FI Earn + Composer can already discover vaults and execute any-token-to-vault deposits. Composer compiles/simulates cross-chain DeFi actions and returns a ready transaction.
 
@@ -73,9 +88,9 @@ Sources:
 - https://docs.li.fi/earn/overview
 - https://docs.li.fi/composer/how-it-works
 
-This is important product infrastructure, but if we route execution entirely through Composer, Asshai becomes "Somnia AI chooses a LI.FI Composer quote." That can be useful, but it weakens the StandardOrder/OIF intent compiler thesis.
+This is important product infrastructure. The initial concern was that routing execution through Composer might weaken the StandardOrder/OIF thesis. Live testing showed the practical tradeoff clearly: Composer reliably executes the yield action, while custom raw-Intent callback orders need solver coordination.
 
-Conclusion: use Earn/Composer as a reference/data source and possible fallback path, but keep the v1 showcase intent-native through LI.FI Intents.
+Conclusion: use Composer as the v1 execution backend, while keeping the Somnia-compiled artifact StandardOrder-shaped for auditability and future LI.FI Intents/OIF compatibility.
 
 ### 6. ERC-7683's useful boundary is solver-facing resolution
 
@@ -85,9 +100,9 @@ Source: https://eips.ethereum.org/EIPS/eip-7683
 
 Conclusion: Asshai's defensible layer is not "we invented an order format." It is "we compile fuzzy human goals into a precise, solver-fillable order/action plan with consensus-verified reasoning."
 
-## Architecture Decision
+## Superseded Architecture Decision - receiver callback path
 
-Build `AsshaiYieldReceiver` plus whitelisted strategy adapters.
+The original decision was to build `AsshaiYieldReceiver` plus whitelisted strategy adapters.
 
 The receiver should live on each supported destination chain. For v1, start with Base only.
 
@@ -104,7 +119,7 @@ Flow:
 9. Receiver supplies USDC into Aave V3 on behalf of the user.
 10. User ends with aUSDC in their wallet.
 
-This preserves the product promise: one user goal, consensus-verified compilation, solver marketplace execution, and background destination-chain yield entry.
+This remains a valid future path if we coordinate with solvers or if public solver support for callback recipients improves. It is not the active v1 demo path.
 
 ## Why Not Let The LLM Produce Calls
 
@@ -252,9 +267,11 @@ Ship the already-working intent compiler and LI.FI settlement path. The compiled
 
 This has lower protocol risk and is safer for a deadline, but the story is weaker because the "yield" action is not atomically fulfilled by the intent.
 
-### Recommendation
+### Historical Recommendation
 
-Proceed with Path A only if we keep Path B as a fallback. The first implementation slice should be:
+This recommendation was made before the raw callback fill test. It is superseded by the June 6 update above.
+
+At that point, the proposed path was to proceed with Path A only if we kept Path B as a fallback. The first implementation slice was:
 
 1. Add a minimal Base `AsshaiYieldReceiver`.
 2. Add receiver-aware encoding with a conservative `outputBps`.
@@ -265,6 +282,6 @@ If the callback order does not move past `Signed` quickly, stop and use Path B f
 
 ## Final Recommendation
 
-Proceed with `AsshaiYieldReceiver` and whitelisted adapters.
+Proceed with the Composer-backed v1 path.
 
-It is the best fit if the product remains an on-chain Intent Compiler for LI.FI/OIF StandardOrders. Composer/Earn is excellent infrastructure and should inform venue discovery, but using Composer as the primary execution path would move us away from the intent-native thesis. The receiver path keeps the strongest story: Somnia compiles the goal; LI.FI solvers deliver the asset; our whitelisted destination contract performs the DeFi action; every reasoning and encoding step remains auditable.
+It is the best fit for the hackathon/product deadline because it has already produced reliable end-to-end yield execution. Asshai still remains an on-chain Intent Compiler: Somnia performs the trustless goal-to-plan translation, stores receipts, and emits a StandardOrder-shaped plan. LI.FI Composer is the execution backend for v1. `AsshaiYieldReceiver` and raw LI.FI Intents callbacks should remain as future/partner-solver research, not the primary demo path.

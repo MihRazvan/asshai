@@ -1,6 +1,6 @@
 # Build Plan - On-Chain Intent Compiler on Somnia
 
-> **Working name:** `Scryer` (placeholder - swap in your chosen ASOIAF name throughout the codebase; all references to "Scryer" below are project-name placeholders).
+> **Project name:** Asshai.
 
 > **Hackathon:** Somnia Agentathon - submission due **June 11, 2026**.
 > **Scope of v1:** Cross-chain stablecoin yield optimization. Goals in, consensus-verified execution plans out, LI.FI API/Composer fulfillment.
@@ -19,7 +19,7 @@ Intent-based DeFi has become a $50B+ category. ERC-7683 standardizes how intents
 
 Three pieces, clean separation:
 
-1. **On-chain compilation (Somnia).** A set of Solidity contracts that receive natural-language goals, orchestrate chained agent calls (JSON API -> LLM Inference -> LLM Inference), validate the result, and encode a deterministic execution plan using trusted registry data. Today this is stored as a StandardOrder-shaped artifact because it gives us a strict, auditable schema; the frontend can also translate it into a LI.FI Composer quote.
+1. **On-chain compilation (Somnia).** A set of Solidity contracts that receive natural-language goals, orchestrate chained agent calls, validate the result, and encode a deterministic execution plan using trusted registry data. The live v1 compiler, `CompilerEngineV2`, runs JSON API -> LLM pool selection -> deterministic Solidity plan/encoding. Today the artifact is StandardOrder-shaped because it gives us a strict, auditable schema; the frontend translates it into a LI.FI Composer quote for execution.
 
 2. **Execution (LI.FI API/Composer, with LI.FI Intents compatibility).** The frontend reads the compiled plan and requests an executable `li.quest/v1/quote`. LI.FI Composer can bridge USDC and perform the destination yield action in one route, which we verified live for Arbitrum USDC -> Base aUSDC. Raw LI.FI Intents escrow remains compatible for simple transfer-style outputs, but custom callback outputs were not reliably filled by public solvers in testing, so Composer is the v1 execution backend.
 
@@ -45,10 +45,8 @@ User                Frontend            Somnia Contracts              LI.FI API/
  │                     │                       │                            │
  │                     │                       │ ─── Agent 1: JSON API ────►│ (DefiLlama)
  │                     │                       │ ◄── pools data callback ───┤
- │                     │                       │ ─── Agent 2: LLM filter ──►│
- │                     │                       │ ◄── candidates callback ───┤
- │                     │                       │ ─── Agent 3: LLM plan ────►│
- │                     │                       │ ◄── allocation plan ───────┤
+ │                     │                       │ ─── Agent 2: LLM select ──►│
+ │                     │                       │ ◄── pool ID callback ──────┤
  │                     │                       │                            │
  │                     │                       │ ─── StandardOrderEncoder ──│
  │                     │                       │ ─── (Solidity only) ───────│
@@ -308,14 +306,14 @@ https://yields.llama.fi/chart/<poolId>
 
 **Output:** a compact JSON blob with pool IDs, APYs, TVLs, chain names, lockup information, and reward token info.
 
-### Agent 2 - Pool Filter (LLM Inference `inferString`, ~0.07 STT * 3)
+### Agent 2 - Pool Selector (LLM Inference `inferString`, ~0.07 STT * 3)
 
 **Prompt template:**
 
 ```text
-You are a DeFi yield router. Given the user's goal and constraints, select
-the top 3 pools from the candidates that best fit the goal. Return ONLY pool
-IDs, comma-separated, no other text.
+You are a DeFi yield router for a single-allocation compiler.
+Choose exactly one pool ID from the candidates. Return ONLY the pool ID,
+no commas, no markdown.
 
 Goal: "{naturalLanguage}"
 Constraints: {constraints joined with comma}
@@ -326,35 +324,28 @@ Candidates:
 Selection:
 ```
 
-**Validation:** the callback parses the response, splits by comma, and validates each pool ID exists in the candidate set. If any fail, set the goal to `Failed` and refund where applicable.
+**Validation:** the callback trims the response and validates it is exactly one supported pool ID. Comma-separated, unknown, or multi-pool responses fail the goal. V2 intentionally does not ask the LLM to allocate percentages.
 
-### Agent 3 - Plan Builder (LLM Inference `inferString`, ~0.07 STT * 3)
+### Plan Builder (deterministic Solidity, no agent)
 
-**Prompt template:**
+`CompilerEngineV2` constructs the plan after the single pool selection:
 
-```text
-Build an allocation plan. Output ONLY a JSON object in this exact schema:
+```json
 {"allocations":[{"chainName":"<name>","poolId":"<id>","pct":<0-100>}],"reasoning":"<short>"}
-Percentages must sum to exactly 100. No markdown. No text before or after the JSON.
-
-Goal: "{naturalLanguage}"
-Source: {sourceAmount} {sourceSymbol} on {sourceChainName}
-Pools to allocate across (you must use all):
-{filtered_pools_with_apy_and_chain}
 ```
 
-**Validation:** the callback parses JSON, validates schema, checks percentages sum to 100, and validates each `(chainName, poolId)` exists in `AddressRegistry`. If any fail, set the goal to `Failed`.
+For v1, the compiler always sets `pct = 100` and `chainName = "base"` for the selected verified pool. This removes the old multi-allocation parser risk and aligns the compiled output with the current single-route LI.FI Composer execution path.
 
 ### Encoding (synchronous, no agent)
 
-After the plan callback validates the parsed plan, `CompilerEngine` calls `StandardOrderEncoder.encode(...)` directly. The result is `abi.encode`d bytes stored in `IntentStore`. `IntentReady` is emitted.
+After the deterministic plan is built, `CompilerEngineV2` calls `StandardOrderEncoder.encode(...)` directly. The result is `abi.encode`d bytes stored in `IntentStore`. `IntentReady` is emitted.
 
 ### Total cost per goal
 
 - 1 * JSON API = approximately `0.09 STT`.
-- 2 * LLM Inference = approximately `0.42 STT`.
-- 3 * operations reserve (varies, currently around `0.03 STT` each).
-- Total = approximately `0.6-0.8 STT` per goal compilation on testnet.
+- 1 * LLM Inference = approximately `0.21 STT`.
+- 2 * operations reserve (varies, currently around `0.03 STT` each).
+- Total = approximately `0.35-0.5 STT` per goal compilation on testnet.
 
 The user funds compilation with `msg.value` on `postGoal`. Unused funds are rebated.
 
@@ -392,16 +383,18 @@ Follow-up live test:
 - LI.FI quote steps: `feeCollection -> across -> composer`.
 - Result: `DONE / COMPLETED`, `0.98836 aBasUSDC` received by the user.
 
-This proves the user-facing v1 product path: natural-language goal -> Somnia consensus compilation -> LI.FI Composer route -> Base Aave yield position.
+This proves the user-facing v1 product path: natural-language goal -> Somnia consensus compilation -> LI.FI Composer route -> Base yield position.
 
-Additional verified quote-only venue:
+Additional live-verified venue:
 
 - Venue: `compound-v3-usdc-base`.
 - Compound Comet/cUSDCv3 proxy: `0xb125E6687d4313864e53df431d5425969c15Eb2F`.
 - Source: Compound Comet `deployments/base/usdc/roots.json` plus on-chain `symbol()`, `decimals()`, and `baseToken()` checks.
-- LI.FI path: `POST /v1/quote/contractCall`, typically `feeCollection -> stargateV2/across -> custom`.
+- LI.FI path: `POST /v1/quote/contractCall`, verified as `feeCollection -> stargateV2 -> custom`.
 - Current safety setting: registry `outputBps = 9800`, so a `0.1 USDC` compiled source asks LI.FI to supply `0.098 USDC` on Base, keeping the exact-output contract-call quote inside the user's source amount.
-- Production note: the updated `/api/yields` endpoint must be redeployed before Somnia's JSON API agent can select Compound live.
+- Arbitrum approval tx: `0x37599eb8885681c427011009a33cd8c3093721defa6f87c6324ef362c5b83838`.
+- Arbitrum route tx: `0x1f1938696967d60e40df284a34ec3479a962b74ecc409b6ed42d0cd693125732`.
+- Result: `DONE / COMPLETED`, Base `cUSDCv3` balance delta `0.097997`.
 
 ### Submission flow
 
@@ -563,13 +556,15 @@ Free, no auth. Verify rate limits when testing.
 
 ### Subject
 
-A user with USDC on Arbitrum types: "Find me the safest 8%+ yield for my stables, max 7-day lockup, prefer Base or Ethereum."
+A user with USDC on Arbitrum types: "maximize my USDC yield, 7-day lockup."
+
+Optional contrast prompt: "find me 8%+ if possible, but don't use sketchy pools." The product should warn that the target APY is above the current verified venue set and compile the best available route rather than pretending an 8% route exists.
 
 ### Beat sheet (3 minutes)
 
 1. **The problem (0:00-0:25).** "Every intent system today - Across, UniswapX, 1inch, LI.FI Intents - assumes you've already turned your goal into a structured order. Real users don't think in token pairs and chain IDs. The translation layer is what's missing. The Ethereum Foundation, LI.FI, and multiple research papers have all named it."
 2. **The pitch (0:25-0:45).** "This is the first on-chain Intent Compiler. Type a goal, Somnia validators reason about it under consensus, you get a fully-formed execution plan ready for LI.FI's routing stack. Built on Somnia because the reasoning has to be trustless - and only Somnia has consensus-verified LLM inference."
-3. **Live compilation (0:45-2:00).** User types the goal. Somnia tx confirms in <1 second. Watch Agent 1 fetch pool data from DefiLlama, Agent 2 filter candidates, Agent 3 build the allocation plan, and `StandardOrderEncoder` deterministically build the bytes-level plan from registry data. The structured plan appears on screen with chain IDs, token addresses, exact amounts, and the decoded destination yield position.
+3. **Live compilation (0:45-2:00).** User types the goal. Somnia tx confirms in <1 second. Watch Agent 1 fetch pool data from DefiLlama, Agent 2 select one verified pool under consensus, and `StandardOrderEncoder` deterministically build the bytes-level plan from registry data. The structured plan appears on screen with chain IDs, token addresses, exact amounts, and the decoded destination yield position.
 4. **Execute through LI.FI Composer (2:00-2:35).** User clicks execute. Frontend requests a LI.FI Composer quote. User approves and signs one origin-chain route transaction on Arbitrum. Status polls live: `PENDING -> DONE / COMPLETED`. Real bridge, real Composer deposit, real Base aUSDC received.
 5. **The receipt (2:35-2:55).** Click into any reasoning step. See the full agent call on-chain - the URL queried, the LLM prompt, the validator signatures, the receipt hash. "All compilation logic is on-chain. No compiler operator, no centralized AI in the translation path. Every decision auditable forever."
 6. **Closer (2:55-3:00).** "Verifiable goal-to-intent translation. The missing layer in intent-based DeFi. Only possible on Somnia."
@@ -701,7 +696,7 @@ Latest coverage finding: the live stack is wired to `CompilerEngineV2`, which co
 ## 11. Repo structure
 
 ```
-scryer/                           # rename to your chosen name
+asshai/
 ├── BUILD_PLAN.md                 # this file
 ├── README.md                     # public-facing pitch + run instructions
 ├── contracts/
@@ -727,10 +722,10 @@ scryer/                           # rename to your chosen name
 │   │   ├── page.tsx                     # goal submission
 │   │   ├── intent/[id]/page.tsx         # compiled intent view + submit
 │   │   └── api/
-│   │       └── order/route.ts           # optional proxy to LI.FI Intents
+│   │       └── order/route.ts           # optional proxy for raw LI.FI Intents research
 │   ├── lib/
 │   │   ├── contracts.ts                 # wagmi/viem contract bindings
-│   │   ├── lifi.ts                      # LI.FI Intents REST client
+│   │   ├── lifi.ts                      # LI.FI helper clients
 │   │   └── somnia.ts                    # chain config
 │   └── package.json
 ├── .env.example
@@ -798,7 +793,7 @@ scryer/                           # rename to your chosen name
 ## 13. Glossary
 
 - **Intent:** a user-signed declaration of desired outcome, not execution detail.
-- **StandardOrder:** the canonical ERC-7683 order struct used by LI.FI Intents and the Open Intents Framework. Single-chain inputs, multi-chain outputs, oracle-verified delivery.
+- **StandardOrder:** the canonical ERC-7683 order struct used by LI.FI Intents and the Open Intents Framework. Single-chain inputs, multi-chain outputs, oracle-verified delivery. In Asshai v1 this is the auditable compiled plan shape; LI.FI Composer is the active execution backend.
 - **MandateOutput:** one of the outputs in a StandardOrder. Specifies a target chain, token, amount, recipient, and optional call.
 - **Input Settler:** the contract on the user's origin chain that holds funds in escrow while a solver fulfills the intent.
 - **Output Settler:** the contract on the destination chain that records solver fills and generates settlement attestations.
@@ -806,7 +801,7 @@ scryer/                           # rename to your chosen name
 - **Order Server:** LI.FI's off-chain matching infrastructure at `order.li.fi`. Distributes intents to the solver network. Optional but improves solver discovery.
 - **Solver:** an entity, usually a market maker with capital, that fulfills intents using its own inventory and is paid from the escrowed input.
 - **Open Intents Framework (OIF):** the Ethereum Foundation-backed reference implementation of ERC-7683. Includes contracts, an open-source Rust solver, and standardized interfaces.
-- **Intent Compiler:** the layer that translates natural-language goals into structured StandardOrder intents. The layer this project builds.
+- **Intent Compiler:** the layer that translates natural-language goals into structured, StandardOrder-shaped execution plans. The layer this project builds.
 
 ---
 
@@ -845,4 +840,4 @@ If any of those five fail, stop and resolve before continuing.
 
 ## 16. Why this project, in one paragraph
 
-Intents are the defining DeFi primitive of 2026. ERC-7683 standardized the data structure. The Open Intents Framework standardized the implementation. LI.FI Intents and others standardized the solver marketplace. What's not standardized - and what the industry has openly identified as missing - is the translation layer that takes a fuzzy human goal and produces a validated intent. Doing this trustlessly requires consensus-verified AI reasoning, which doesn't exist on any chain except Somnia. This project is the first implementation of that translation layer, built directly on the agent stack Somnia ships. Every reasoning step is on-chain. Every validator independently agreed. Every output is auditable forever. The user's funds stay where they are; we compile the intent that moves them.
+Intents are the defining DeFi primitive of 2026. ERC-7683 standardized the data structure. The Open Intents Framework standardized the implementation. LI.FI Intents and others standardized the solver marketplace. What's not standardized - and what the industry has openly identified as missing - is the translation layer that takes a fuzzy human goal and produces a validated execution plan. Doing this trustlessly requires consensus-verified AI reasoning, which doesn't exist on any chain except Somnia. This project is the first implementation of that translation layer, built directly on the agent stack Somnia ships. Every reasoning step is on-chain. Every validator independently agreed. Every output is auditable forever. The user's funds stay where they are; we compile the plan that moves them through LI.FI's routing stack.
