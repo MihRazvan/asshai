@@ -4,6 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useMemo, useState } from "react";
 import {
   decodeAbiParameters,
+  encodeFunctionData,
   formatUnits,
   Hex,
   isHex,
@@ -35,6 +36,22 @@ const goalStatuses = [
   "Settled",
   "Failed",
   "Expired",
+] as const;
+
+const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
+const BASE_COMPOUND_CUSDCV3 = "0xb125E6687d4313864e53df431d5425969c15Eb2F" as const;
+const COMPOUND_CONTRACT_CALL_GAS_LIMIT = "350000";
+const compoundCometAbi = [
+  {
+    type: "function",
+    name: "supply",
+    inputs: [
+      { name: "asset", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
 ] as const;
 
 const standardOrderAbi = [
@@ -146,6 +163,10 @@ function finalOutputToken(output: StandardOrder["outputs"][number]) {
   return decodeYieldAction(output.callbackData)?.positionToken ?? bytes32ToAddress(output.token);
 }
 
+function isCompoundBaseOutput(output: StandardOrder["outputs"][number]) {
+  return bytes32ToAddress(output.token).toLowerCase() === BASE_COMPOUND_CUSDCV3.toLowerCase();
+}
+
 type LifiQuote = {
   tool?: string;
   estimate?: {
@@ -254,7 +275,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
   const routeSpender = routeTx?.to;
 
   async function requestComposerQuote() {
-    if (!order || !inputToken || !outputToken || !originChainId || !outputChainId) {
+    if (!order || !output || !inputToken || !outputToken || !originChainId || !outputChainId) {
       return;
     }
 
@@ -263,17 +284,38 @@ export function IntentClient({ goalId }: { goalId: string }) {
     setExecutionStatus(undefined);
     setLifiStatus(undefined);
 
-    const response = await fetch("/api/lifi/quote", {
+    const isCompound = isCompoundBaseOutput(output);
+    const response = await fetch(isCompound ? "/api/lifi/contract-call-quote" : "/api/lifi/quote", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        fromChain: originChainId,
-        toChain: outputChainId,
-        fromToken: inputToken,
-        toToken: outputToken,
-        fromAmount: inputAmount.toString(),
-        fromAddress: order.user,
-      }),
+      body: JSON.stringify(
+        isCompound
+          ? {
+              fromChain: originChainId,
+              toChain: outputChainId,
+              fromToken: inputToken,
+              toToken: BASE_USDC,
+              toAmount: output.amount.toString(),
+              fromAddress: order.user,
+              toContractAddress: BASE_COMPOUND_CUSDCV3,
+              toContractCallData: encodeFunctionData({
+                abi: compoundCometAbi,
+                functionName: "supply",
+                args: [BASE_USDC, output.amount],
+              }),
+              toContractGasLimit: COMPOUND_CONTRACT_CALL_GAS_LIMIT,
+              toApprovalAddress: BASE_COMPOUND_CUSDCV3,
+              contractOutputsToken: BASE_COMPOUND_CUSDCV3,
+            }
+          : {
+              fromChain: originChainId,
+              toChain: outputChainId,
+              fromToken: inputToken,
+              toToken: outputToken,
+              fromAmount: inputAmount.toString(),
+              fromAddress: order.user,
+            },
+      ),
     });
     const body = await response.json();
 

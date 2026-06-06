@@ -258,6 +258,42 @@ contract CompilerEngineTest is Test {
         assertEq(action.minAmount, 990e6);
     }
 
+    function testEncoderBuildsDirectCompoundVenueIntent() external {
+        AddressRegistry addressRegistry = new AddressRegistry(address(this));
+        address comet = address(0xC0);
+
+        addressRegistry.setInputSettler(42161, address(0x1001));
+        addressRegistry.setVenue(
+            "base",
+            "compound-v3-usdc-base",
+            AddressRegistry.VenueConfig({
+                deliveryToken: comet,
+                positionToken: address(0),
+                outputSettler: address(0x3001),
+                oracle: address(0x4001),
+                receiver: address(0),
+                chainId: 8453,
+                strategyId: bytes32(0),
+                outputBps: 0,
+                active: true
+            })
+        );
+
+        StandardOrderEncoder encoder = new StandardOrderEncoder(address(addressRegistry));
+        StandardOrderEncoder.Allocation[] memory allocations = new StandardOrderEncoder.Allocation[](1);
+        allocations[0] =
+            StandardOrderEncoder.Allocation({chainName: "base", poolId: "compound-v3-usdc-base", bps: 10_000});
+
+        bytes memory encoded = encoder.encode(43, address(this), 42161, address(0x1234), 1_000e6, allocations);
+        CanonicalStandardOrder memory order = abi.decode(encoded, (CanonicalStandardOrder));
+
+        assertEq(order.outputs.length, 1);
+        assertEq(order.outputs[0].token, _addressToBytes32(comet));
+        assertEq(order.outputs[0].amount, 1_000e6);
+        assertEq(order.outputs[0].recipient, _addressToBytes32(address(this)));
+        assertEq(order.outputs[0].callbackData.length, 0);
+    }
+
     function testPlanCallbackRejectsZeroPctAllocation() external {
         (MockAgentRequester platform, CompilerEngine compilerEngine, GoalRegistry goalRegistry,) = _deployHarness();
 

@@ -3,13 +3,13 @@
 > **Working name:** `Scryer` (placeholder - swap in your chosen ASOIAF name throughout the codebase; all references to "Scryer" below are project-name placeholders).
 
 > **Hackathon:** Somnia Agentathon - submission due **June 11, 2026**.
-> **Scope of v1:** Cross-chain stablecoin yield optimization. Goals in, consensus-verified StandardOrder intents out, LI.FI Intents fulfillment.
+> **Scope of v1:** Cross-chain stablecoin yield optimization. Goals in, consensus-verified execution plans out, LI.FI API/Composer fulfillment.
 
 ---
 
 ## 1. The pitch in one paragraph
 
-Intent-based DeFi has become a $50B+ category. ERC-7683 standardizes how intents are structured. The Open Intents Framework (Ethereum Foundation + Hyperlane, Feb 2025) defines the reference implementation. LI.FI Intents and others have shipped competitive solver marketplaces processing tens of billions in flow. But every part of this stack assumes someone has already turned the user's goal into a structured intent - specific token, specific chain, specific destination. Real users don't think that way. They think "find me the safest 8%+ yield" or "rebalance into stables if ETH drops." Translating fuzzy goals into validated StandardOrder intents is the missing layer the whole industry is openly looking for, and it requires reasoning about messy real-world data that no centralized AI can trustlessly do. This project is the first on-chain Intent Compiler: type a goal, watch Somnia validators reason about it under consensus, get a fully-formed ERC-7683 StandardOrder ready to submit to LI.FI Intents. Every reasoning step is on-chain, consensus-verified, and audit-traced. This cannot exist on any chain without on-chain LLM consensus - Somnia is the only one.
+Intent-based DeFi has become a $50B+ category. ERC-7683 standardizes how intents are structured. The Open Intents Framework (Ethereum Foundation + Hyperlane, Feb 2025) defines the reference implementation. LI.FI Intents and others have shipped competitive solver marketplaces processing tens of billions in flow. But every part of this stack assumes someone has already turned the user's goal into a structured intent - specific token, specific chain, specific destination. Real users don't think that way. They think "find me the safest 8%+ yield" or "rebalance into stables if ETH drops." Translating fuzzy goals into validated execution plans is the missing layer the whole industry is openly looking for, and it requires reasoning about messy real-world data that no centralized AI can trustlessly do. This project is the first on-chain Intent Compiler: type a goal, watch Somnia validators reason about it under consensus, get a fully-formed, auditable plan that can be executed through LI.FI's routing stack. Every reasoning step is on-chain, consensus-verified, and audit-traced. This cannot exist on any chain without on-chain LLM consensus - Somnia is the only one.
 
 **Moat:** Consensus-verified goal-to-intent translation. Every other intent compiler today would be an off-chain backend - a single AI operator whose reasoning you trust. Ours is a chained agent workflow running inside validator consensus, with every step receipt-signed. The Open Intents Framework explicitly leaves this layer unsolved because it can't be solved at the standard layer; it requires real reasoning over real-world data, which only Somnia provides as a consensus primitive.
 
@@ -19,13 +19,13 @@ Intent-based DeFi has become a $50B+ category. ERC-7683 standardizes how intents
 
 Three pieces, clean separation:
 
-1. **On-chain compilation (Somnia).** A set of Solidity contracts that receive natural-language goals, orchestrate chained agent calls (JSON API -> LLM Inference -> LLM Inference), validate the result, and encode a final ERC-7683 StandardOrder using trusted registry data. This is the load-bearing innovation.
+1. **On-chain compilation (Somnia).** A set of Solidity contracts that receive natural-language goals, orchestrate chained agent calls (JSON API -> LLM Inference -> LLM Inference), validate the result, and encode a deterministic execution plan using trusted registry data. Today this is stored as a StandardOrder-shaped artifact because it gives us a strict, auditable schema; the frontend can also translate it into a LI.FI Composer quote.
 
-2. **Solver marketplace execution (LI.FI Intents).** The frontend submits the compiled StandardOrder to `order.li.fi`, where LI.FI's permissionless solver marketplace competes to fulfill it. We sit above the solver layer, not against it. LI.FI Intents is the execution backend.
+2. **Execution (LI.FI API/Composer, with LI.FI Intents compatibility).** The frontend reads the compiled plan and requests an executable `li.quest/v1/quote`. LI.FI Composer can bridge USDC and perform the destination yield action in one route, which we verified live for Arbitrum USDC -> Base aUSDC. Raw LI.FI Intents escrow remains compatible for simple transfer-style outputs, but custom callback outputs were not reliably filled by public solvers in testing, so Composer is the v1 execution backend.
 
-3. **Frontend (Next.js).** Goal submission, live compilation visualization, structured intent preview, EIP-712 signing on the user's origin chain, LI.FI Intents submission/status polling, and receipt explorer. Design and UX/UI direction will come separately - do not over-design upfront. Build minimally functional first.
+3. **Frontend (Next.js).** Goal submission, live compilation visualization, structured plan preview, origin-chain approval, LI.FI Composer transaction execution/status polling, and receipt explorer. Design and UX/UI direction will come separately - do not over-design upfront. Build minimally functional first.
 
-The user's funds do **not** need to be on Somnia. Somnia is the compiler chain. The user's funds stay on their origin chain (Ethereum, Arbitrum, Base, Optimism, etc.) where LI.FI input settlers and oracle systems are deployed.
+The user's funds do **not** need to be on Somnia. Somnia is the compiler chain. The user's funds stay on their origin chain (Ethereum, Arbitrum, Base, Optimism, etc.) where LI.FI routing supports the requested source asset.
 
 ---
 
@@ -34,7 +34,7 @@ The user's funds do **not** need to be on Somnia. Somnia is the compiler chain. 
 ### High-level flow
 
 ```
-User                Frontend            Somnia Contracts              LI.FI Intents
+User                Frontend            Somnia Contracts              LI.FI API/Composer
  │                     │                       │                            │
  │  "max USDC yield"   │                       │                            │
  ├────────────────────►│                       │                            │
@@ -57,19 +57,19 @@ User                Frontend            Somnia Contracts              LI.FI Inte
  │                     │◄──────────────────────┤                            │
  │   review intent     │                       │                            │
  │◄────────────────────┤                       │                            │
- │   sign on origin    │                       │                            │
- │   chain wallet      │                       │                            │
- ├────────────────────►├──────── POST /orders/submit ──────────────────────►│
- │                     │◄──────── catalystOrderId ──────────────────────────┤
+ │   approve + execute │                       │                            │
+ │   on origin chain   │                       │                            │
+ ├────────────────────►├──────── GET /v1/quote ────────────────────────────►│
+ │                     │◄──── executable route tx ──────────────────────────┤
  │                     │                       │                            │
- │                     │   poll /orders/status                              │
+ │                     │   poll /v1/status                                  │
  │                     ├───────────────────────────────────────────────────►│
- │                     │◄──── Signed → Delivered → Settled ─────────────────┤
+ │                     │◄──── PENDING → DONE / COMPLETED ───────────────────┤
 ```
 
 ### Why Somnia is the compiler, not the origin chain
 
-Verification of LI.FI Intents shows that a `StandardOrder` has an `originChainId`, and the user's funds must originate on a chain where LI.FI input settler contracts and oracle systems are deployed. Somnia is supported by LI.FI for bridging, but it is not currently a LI.FI Intents origin chain. That is fine: Somnia's role is to host trustless reasoning and compilation. The user signs the compiled order on the chain where their funds already live.
+Verification of LI.FI Intents shows that a `StandardOrder` has an `originChainId`, and the user's funds must originate on a chain where LI.FI input settler contracts and oracle systems are deployed. Verification of LI.FI Composer shows a more reliable v1 path: `li.quest/v1/quote` can route Arbitrum USDC into Base aUSDC using bridge + Composer steps. That is fine: Somnia's role is to host trustless reasoning and compilation. The user approves and executes on the chain where their funds already live.
 
 The user's wallet connects to two networks: Somnia to post the goal and pay the compilation fee, and the origin chain to sign the resulting StandardOrder. RainbowKit/wagmi handles this multi-chain wallet UX natively.
 
@@ -151,7 +151,7 @@ uint256 public nextGoalId;
 - `postGoal(string nl, address asset, uint256 amount, uint256 chainId, string[] constraints, uint256 deadline) external payable returns (uint256 goalId)` - payable to fund compilation. Emits `GoalPosted`.
 - `getGoal(uint256 goalId) external view returns (Goal memory)`.
 - `markIntentReady(uint256 goalId, bytes32 intentHash)` - called by `CompilerEngine` when the StandardOrder is built.
-- `markSubmitted(uint256 goalId, string calldata catalystOrderId)` - called by the frontend after `POST /orders/submit` succeeds.
+- `markSubmitted(uint256 goalId, string calldata executionId)` - optional bookkeeping hook called by the frontend after LI.FI route execution starts. For Composer, `executionId` can be the LI.FI source transaction hash.
 
 ### `CompilerEngine.sol`
 
@@ -214,6 +214,7 @@ Populate at deploy time with the 6-10 venues we support in v1:
 
 - `("ethereum", "aave-v3-usdc-mainnet")` -> aUSDC mainnet.
 - `("base", "aave-v3-usdc-base")` -> aUSDC Base.
+- `("base", "compound-v3-usdc-base")` -> Compound V3 Base cUSDCv3 via LI.FI contract-call Composer.
 - `("base", "morpho-spark-usdc")` -> Morpho vault token.
 - `("ethereum", "morpho-spark-usdc-mainnet")` -> Morpho vault token mainnet.
 - `("ethereum", "spark-susds")` -> sUSDS token.
@@ -359,36 +360,64 @@ The user funds compilation with `msg.value` on `postGoal`. Unused funds are reba
 
 ---
 
-## 6. LI.FI Intents integration
+## 6. LI.FI execution integration
 
 ### What we use from LI.FI
 
-The `order.li.fi` order server hosts the LI.FI Intents marketplace where solvers compete to fulfill StandardOrder-shaped intents.
+The v1 execution backend is LI.FI's standard API plus Composer, accessed through `https://li.quest/v1`. This path is better suited to the demo/product goal than raw LI.FI Intents callbacks because it can return one executable route that bridges the user's USDC and performs the destination yield action.
 
 Endpoints we hit:
 
-- `GET https://order.li.fi/chains/supported` - read the live list of supported origin/destination chains. Call at app boot and cache.
-- `GET https://order.li.fi/routes` - see active route pairs and supported tokens. Call at app boot.
-- `POST https://order.li.fi/quote/request` - optional quote discovery before constructing/opening an order.
-- `GET https://order.li.fi/orders/status?onChainOrderId=...` - poll status after opening a standard escrow order on-chain.
-- `POST https://order.li.fi/orders/submit` - only for gasless escrow or Compact-style off-chain submissions, not the default v1 escrow path.
+- `GET https://li.quest/v1/chains` - confirm origin and destination chains are supported.
+- `GET https://li.quest/v1/tokens?chains=...` - confirm supported source and destination tokens.
+- `GET https://li.quest/v1/quote` - request an executable route. For the verified Aave route, `fromChain=42161`, `toChain=8453`, `fromToken=Arbitrum USDC`, `toToken=Base aUSDC`, `fromAmount=<user amount>`, `fromAddress=<user>`.
+- `POST https://li.quest/v1/quote/contractCall` - request a Composer route with a destination contract call. For Compound Base, route USDC to Base and call `Comet.supply(Base USDC, amount)`; this is the real Compound deposit path. A plain quote directly to `cUSDCv3` is not sufficient because it can route through token liquidity instead of depositing into Compound.
+- `GET https://li.quest/v1/status?txHash=...&fromChain=...&toChain=...` - poll route execution status.
+- `GET https://order.li.fi/chains/supported`, `GET https://order.li.fi/routes`, and `POST https://order.li.fi/quote/request` - keep as research/compatibility endpoints for ERC-7683 / raw LI.FI Intents paths, but not the v1 execution path.
+
+### Verified execution path
+
+Live test on June 5, 2026:
+
+- Input: `0.1 USDC` on Arbitrum.
+- Compiled plan: `aave-v3-usdc-base`, 100% allocation.
+- LI.FI quote steps: `feeCollection -> stargateV2 -> composer`.
+- Source transaction: Arbitrum LI.FI route call.
+- Destination transaction: Base Composer execution.
+- Result: `0.099702 aBasUSDC` received by the user.
+
+Follow-up live test:
+
+- Input: `1 USDC` on Arbitrum.
+- LI.FI quote steps: `feeCollection -> across -> composer`.
+- Result: `DONE / COMPLETED`, `0.98836 aBasUSDC` received by the user.
+
+This proves the user-facing v1 product path: natural-language goal -> Somnia consensus compilation -> LI.FI Composer route -> Base Aave yield position.
+
+Additional verified quote-only venue:
+
+- Venue: `compound-v3-usdc-base`.
+- Compound Comet/cUSDCv3 proxy: `0xb125E6687d4313864e53df431d5425969c15Eb2F`.
+- Source: Compound Comet `deployments/base/usdc/roots.json` plus on-chain `symbol()`, `decimals()`, and `baseToken()` checks.
+- LI.FI path: `POST /v1/quote/contractCall`, typically `feeCollection -> stargateV2/across -> custom`.
+- Current safety setting: registry `outputBps = 9800`, so a `0.1 USDC` compiled source asks LI.FI to supply `0.098 USDC` on Base, keeping the exact-output contract-call quote inside the user's source amount.
+- Production note: the updated `/api/yields` endpoint must be redeployed before Somnia's JSON API agent can select Compound live.
 
 ### Submission flow
 
 After `IntentReady` fires on Somnia:
 
-1. Frontend reads the encoded StandardOrder from `IntentStore`.
+1. Frontend reads the encoded plan from `IntentStore`.
 2. Frontend decodes it to the typed structure for display in the UI.
-3. User reviews the structured intent.
-4. User clicks "Approve input token" on the origin-chain wallet.
-5. Frontend calls ERC-20 `approve(InputSettlerEscrow, amount)` if allowance is insufficient.
-6. User clicks "Open escrow order."
-7. Frontend calls LI.FI `InputSettlerEscrow.open(encodedStandardOrder)` on the origin chain.
-8. The escrow emits `Open(bytes32 indexed orderId, bytes order)`.
-9. Frontend records the `orderId` and polls `/orders/status?onChainOrderId=...` every ~3 seconds.
-10. For gasless or Compact flows only, use `POST /orders/submit` with the required quote/signature metadata.
+3. If the compiled plan contains callback-style yield metadata, frontend decodes the callback payload to recover the intended final position token, e.g. Base `aUSDC`.
+4. For Aave-style vault token outputs, frontend calls `GET /v1/quote` through `/api/lifi/quote`.
+5. For Compound Base, frontend calls `POST /v1/quote/contractCall` through `/api/lifi/contract-call-quote`, with destination calldata for `Comet.supply(Base USDC, amount)`.
+6. User approves the LI.FI transaction target for the exact source amount.
+7. User executes the returned `transactionRequest` on the origin chain.
+8. Frontend polls `/v1/status` through `/api/lifi/status`.
+9. Successful status is `DONE / COMPLETED`; destination output should be the target yield position token.
 
-### StandardOrder structure (canonical, from LI.FI docs)
+### Compiled plan artifact
 
 ```ts
 type StandardOrder = {
@@ -414,29 +443,32 @@ type MandateOutput = {
 };
 ```
 
-`tokenIdentifier` is the input token address represented as a `uint256`. Output `oracle`, `settler`, `token`, and `recipient` are `bytes32`; for EVM addresses, left-pad the 20-byte address with zeros.
+The contract artifact is still StandardOrder-shaped because it is a strict, bytes-level schema that Solidity can construct and the frontend can decode. For the Composer path, the frontend uses the artifact as an auditable plan: source chain/token/amount from `inputs`, destination chain from `outputs`, and final yield token from callback payload when present. Raw `InputSettlerEscrow.open` is not the v1 path.
 
-### Order status lifecycle
+### LI.FI route status lifecycle
 
-`Submitted -> Open -> Signed -> Delivered -> Settled`
+Typical status flow:
 
-For UI purposes, treat `Signed`, `Delivered`, and `Settled` as the primary states.
+- `PENDING / WAIT_DESTINATION_TRANSACTION`
+- `DONE / COMPLETED`
+- `FAILED` or `REFUNDED` for unsuccessful routes
 
-### Important constraints from the docs
+For UI purposes, show the LI.FI `status`, `substatus`, destination transaction hash, and received token/amount.
 
-- Use only known, reliable settlement contracts and oracles. Do not invent addresses. Hardcode trusted addresses in `AddressRegistry`.
-- Multi-output orders: the first output must be the most valuable, because solvers focus on that first.
-- All oracles must belong to the same network. Do not mix oracle systems within one order.
-- Provide buffer between `fillDeadline` and `expires`. Reasonable defaults: `fillDeadline = now + 30min`, `expires = now + 2h`.
-- Single-output orders are simpler and more reliably filled. For v1, prefer one allocation per goal if it fits the user's goal; support two allocations max only if needed.
+### Important constraints
 
-### Permissionless property
+- Use only destination tokens that `GET /v1/quote` can route into. For the demo, Base `aUSDC` is verified.
+- The compiled plan must remain constrained to supported venues until we have a broader coverage matrix.
+- Prefer single-allocation goals for v1. Multi-allocation execution requires multiple LI.FI routes or a more complex destination batching story.
+- The quote target is dynamic. Frontend must approve the `transactionRequest.to` address returned by LI.FI, not a hardcoded escrow address.
+- LI.FI status polling can briefly return parser noise around bridge-specific metadata; also verify destination token balances when debugging.
+- LI.FI Earn/vault discovery may require `x-lifi-api-key`, but the executable `/v1/quote` path worked without an API key in testing.
 
-LI.FI Intents is permissionless. No API key is required for order submission. No allowlist. No KYB. Anyone can post orders; anyone can solve them. This is critical to the pitch.
+### Raw LI.FI Intents findings
 
-### Rate limits
+Raw `InputSettlerEscrow.open` was tested. A simple Arbitrum USDC -> Base USDC order reached `Settled`, proving basic raw LI.FI Intents escrow fulfillment works. Custom callback orders to `AsshaiYieldReceiver` reached `Signed` but did not get filled by public solvers, even with a reserved quote context. Conclusion: raw LI.FI Intents callbacks may be viable with solver coordination, but they are not reliable enough for the v1 public demo path.
 
-None on the `order.li.fi` server for integrators, per LI.FI docs. Solver-side APIs require a key, but we are not a solver.
+Stuck raw Intents orders can be refunded after `expires` by calling `InputSettlerEscrow.refund(order)`. A local helper exists at `frontend/scripts/refund-order.mjs`.
 
 ### DefiLlama (data source, called by Agent 1)
 
@@ -470,11 +502,11 @@ Free, no auth. Verify rate limits when testing.
 - Modify the test contract to use `LLM Inference` `inferString` with a constrained prompt. Get a deterministic string output.
 - Test that two calls with identical inputs produce identical outputs. That's the consensus property in action.
 
-**Day 6-7: Prompt engineering, selectors, and LI.FI Intents discovery**
+**Day 6-7: Prompt engineering, selectors, and LI.FI execution discovery**
 
 - Verify JSON API agent selector syntax against DefiLlama's `/pools` endpoint. Test a tight filter for a single pool by ID. If `||`-style multi-filter selectors do not work, fall back to per-pool `/chart/<id>` calls.
 - Mock the JSON API output by hardcoding a small pool list as a string. Test the filter prompt with 5-10 realistic goal variations.
-- Verify `GET https://order.li.fi/chains/supported` and confirm which chains we can target (likely Ethereum, Base, Arbitrum, Optimism, Polygon - verify).
+- Verify `GET https://li.quest/v1/chains`, `GET https://li.quest/v1/tokens`, and executable `GET https://li.quest/v1/quote` routes for each supported source/destination pair.
 - Decide on the 6-10 venues we will support in v1 and populate `AddressRegistry` seed data in the deploy script.
 - If prompts do not produce parseable output reliably, fall back to numeric outputs (`inferNumber`) with index-based pool selection.
 
@@ -486,12 +518,14 @@ Free, no auth. Verify rate limits when testing.
 - Wire callbacks: rates -> filter -> plan -> encode. Each callback either validates or fails loudly.
 - Run a full compilation on testnet with a sample goal. Verify all three receipts land in `ReceiptLog`.
 
-**Day 10-11: LI.FI Intents integration**
+**Day 10-11: LI.FI Composer integration**
 
-- Wire frontend to `POST https://order.li.fi/orders/submit`.
-- Prepare EIP-712 typed-data signing on the user's origin chain.
-- Poll `GET https://order.li.fi/orders/status?catalystOrderId=...`.
+- Wire frontend to `GET https://li.quest/v1/quote` through `/api/lifi/quote`.
+- Approve the dynamic `transactionRequest.to` target for the exact input amount.
+- Execute the returned `transactionRequest` on the user's origin chain.
+- Poll `GET https://li.quest/v1/status?txHash=...`.
 - Display status events in UI.
+- Keep raw LI.FI Intents escrow behind the scenes as a research path only; do not make callback escrow the demo-critical path.
 
 **Day 12-13: Frontend MVP**
 
@@ -506,19 +540,19 @@ Free, no auth. Verify rate limits when testing.
 - Failed compilation handling.
 - Agent timeouts.
 - Insufficient gas / STT.
-- LI.FI order rejection or no-fill states.
+- LI.FI quote rejection, execution failure, and refund states.
 - Refund paths.
 
 ### Week 3 - Demo, video, writeup (June 10 -> June 11)
 
 **Day 15: Run real demos end-to-end**
 
-- One demo goal that compiles cleanly into a predictable StandardOrder.
+- One demo goal that compiles cleanly into a predictable Composer-executable plan.
 - One demo goal that shows non-obvious reasoning, such as preferring lower APY because of risk or lockup constraints.
 
 **Day 16: Demo video + README**
 
-- 3-minute video: goal submission -> live agent reasoning -> StandardOrder -> LI.FI Intents submission -> status -> receipt.
+- 3-minute video: goal submission -> live agent reasoning -> compiled plan -> LI.FI Composer quote/execution -> status -> receipt.
 - README with one-paragraph pitch, architecture diagram, deployed contracts, and demo link.
 
 **Day 17 (buffer / submission day): Submit.**
@@ -534,9 +568,9 @@ A user with USDC on Arbitrum types: "Find me the safest 8%+ yield for my stables
 ### Beat sheet (3 minutes)
 
 1. **The problem (0:00-0:25).** "Every intent system today - Across, UniswapX, 1inch, LI.FI Intents - assumes you've already turned your goal into a structured order. Real users don't think in token pairs and chain IDs. The translation layer is what's missing. The Ethereum Foundation, LI.FI, and multiple research papers have all named it."
-2. **The pitch (0:25-0:45).** "This is the first on-chain Intent Compiler. Type a goal, Somnia validators reason about it under consensus, you get a fully-formed StandardOrder ready to submit to any ERC-7683 marketplace. Built on Somnia because the reasoning has to be trustless - and only Somnia has consensus-verified LLM inference."
-3. **Live compilation (0:45-2:00).** User types the goal. Somnia tx confirms in <1 second. Watch Agent 1 fetch pool data from DefiLlama, Agent 2 filter candidates, Agent 3 build the allocation plan, and `StandardOrderEncoder` deterministically build the bytes-level order from registry data. The structured order appears on screen with hexadecimal addresses, exact amounts, and ABI-encoded bytes.
-4. **Submit to LI.FI Intents (2:00-2:35).** User clicks submit. User signs on origin chain (Arbitrum). Frontend POSTs to `order.li.fi`. `catalystOrderId` returns. Status polls live: `Signed -> Delivered -> Settled`. Real solver, real fulfillment.
+2. **The pitch (0:25-0:45).** "This is the first on-chain Intent Compiler. Type a goal, Somnia validators reason about it under consensus, you get a fully-formed execution plan ready for LI.FI's routing stack. Built on Somnia because the reasoning has to be trustless - and only Somnia has consensus-verified LLM inference."
+3. **Live compilation (0:45-2:00).** User types the goal. Somnia tx confirms in <1 second. Watch Agent 1 fetch pool data from DefiLlama, Agent 2 filter candidates, Agent 3 build the allocation plan, and `StandardOrderEncoder` deterministically build the bytes-level plan from registry data. The structured plan appears on screen with chain IDs, token addresses, exact amounts, and the decoded destination yield position.
+4. **Execute through LI.FI Composer (2:00-2:35).** User clicks execute. Frontend requests a LI.FI Composer quote. User approves and signs one origin-chain route transaction on Arbitrum. Status polls live: `PENDING -> DONE / COMPLETED`. Real bridge, real Composer deposit, real Base aUSDC received.
 5. **The receipt (2:35-2:55).** Click into any reasoning step. See the full agent call on-chain - the URL queried, the LLM prompt, the validator signatures, the receipt hash. "All compilation logic is on-chain. No compiler operator, no centralized AI in the translation path. Every decision auditable forever."
 6. **Closer (2:55-3:00).** "Verifiable goal-to-intent translation. The missing layer in intent-based DeFi. Only possible on Somnia."
 
@@ -556,12 +590,12 @@ A user with USDC on Arbitrum types: "Find me the safest 8%+ yield for my stables
 |---|---|---|
 | LLM produces invalid pool IDs / JSON | High | Two-layer pattern: LLM outputs constrained schema only; Solidity encoder uses registry addresses. Validate every parse. |
 | JSON API selector syntax limited | Medium | Test in week 1. Fall back to per-pool `/chart/<id>` calls if needed. |
-| LI.FI Intents address discovery | Medium | At deploy time, fetch input settler / output settler / oracle addresses from LI.FI docs and `order.li.fi`. Bake into `AddressRegistry`. Verify on each supported chain. |
-| Order rejected by solvers or no fill | Medium | Build orders that match well-trafficked routes (USDC -> vault tokens on Base/Ethereum). Avoid esoteric tokens. Prefer single-output orders. |
+| LI.FI route coverage changes | Medium | Query `li.quest/v1/quote` at runtime and keep a tested route matrix. Do not show unsupported venues in the demo UI. |
+| Raw LI.FI Intents callback orders not filled | Medium | Use LI.FI Composer as v1 execution. Keep raw Intents callbacks as future/partner-solver research only. |
 | User wallet is not on origin chain | Low | RainbowKit handles chain switching natively. Prompt user to switch. |
 | Agent IDs / pricing differ from this doc | Medium | Always pull from https://agents.somnia.network code generator; treat this doc as guidance, not source of truth. |
 | Total per-goal STT cost too high | Low | Pre-fund demo wallet. Real cost is cents. |
-| Somnia not a LI.FI Intents origin chain | None | By design - funds stay on user's origin chain. Somnia is the compiler. |
+| Somnia not an execution origin chain | None | By design - funds stay on user's origin chain. Somnia is the compiler. |
 | Agent timeouts | Low | Handle `ResponseStatus.TimedOut` in every callback; auto-mark goal failed and refund where applicable. |
 
 ### Open questions to resolve in week 1
@@ -569,12 +603,12 @@ A user with USDC on Arbitrum types: "Find me the safest 8%+ yield for my stables
 1. Exact JSON API agent selector syntax. Test on Somnia testnet.
 2. Maximum payload size for `fetchString` selector output.
 3. Maximum prompt length for `inferString`.
-4. Confirm LI.FI Intents is accessible from any frontend without API key for submission. Docs say yes; verify empirically.
+4. Confirm LI.FI `li.quest/v1/quote` returns executable routes for each venue in `AddressRegistry`.
 5. Get current Somnia testnet RPC URL. It was `https://dream-rpc.somnia.network`; verify still active and compare with current Somnia docs.
 
 ### What I deliberately punt on
 
-- No custom solver marketplace. LI.FI Intents and other ERC-7683 marketplaces already exist.
+- No custom solver marketplace. LI.FI, LI.FI Intents, and other ERC-7683 marketplaces already exist.
 - No order matching / coincidence of wants. That's not our layer.
 - No leverage, no shorting, no perps. Stables yield only.
 - No agent reputation / staking. Out of scope.
@@ -582,7 +616,89 @@ A user with USDC on Arbitrum types: "Find me the safest 8%+ yield for my stables
 
 ---
 
-## 10. Repo structure
+## 10. Product coverage matrix before frontend polish
+
+Before design or onboarding work, map the real supported product envelope. The goal is to know exactly what a user can type and what we can execute without guessing.
+
+### Supported v1 user intent shape
+
+For v1, only support fuzzy stablecoin allocation goals that can be normalized into:
+
+```json
+{
+  "asset": "USDC",
+  "sourceChain": "Arbitrum",
+  "sourceAmount": "exact user amount",
+  "objective": "maximize yield | safest yield | low gas | prefer chain",
+  "constraints": {
+    "maxLockupDays": 7,
+    "allowedChains": ["base", "ethereum", "arbitrum"],
+    "risk": "low | medium",
+    "singleAllocationPreferred": true
+  }
+}
+```
+
+Reject or explain unsupported goals instead of hallucinating:
+
+- Leveraged, borrow, short, options, LP, or volatile-asset strategies.
+- Multi-step conditional automation such as "if ETH drops" until we build a keeper/trigger layer.
+- Unsupported source tokens or source chains.
+- Venues not present in `AddressRegistry` and not executable through the verified LI.FI route type for that venue.
+
+Current implementation note: the frontend and coverage harness use a deterministic preflight classifier before `postGoal`. It blocks unsupported conditionals, split allocations, unsupported tokens, and unverified destination-chain preferences before spending STT on Somnia compilation. This is intentionally conservative for the demo.
+
+### Prompt/agent coverage tests
+
+Create a table of 20-30 natural-language prompts and record:
+
+- Parsed constraints.
+- Candidate pools selected.
+- Final allocation JSON.
+- Whether parsing succeeds.
+- Whether the chosen `(chainName, poolId)` exists in `AddressRegistry`.
+- Whether LI.FI returns an executable Composer route: standard `/v1/quote` for vault-token routes, or `/v1/quote/contractCall` for destination contract-call routes.
+
+Seed prompt examples:
+
+- "maximize my USDC yield, 7-day lockup"
+- "safest stablecoin yield, no lockup, prefer Base"
+- "I want low gas and low risk for USDC"
+- "find me 8%+ if possible, but don't use sketchy pools"
+- "put my stables somewhere safe for a week"
+- "prefer Ethereum even if APY is lower"
+- "split between the two safest USDC venues" (reject or constrain until multi-route execution exists)
+- "rebalance if ETH drops" (unsupported conditional)
+- "use USDT" (unsupported until token coverage exists)
+
+### Execution coverage tests
+
+For each supported venue, run a quote-only test first:
+
+- Arbitrum USDC -> Base aUSDC
+- Arbitrum USDC -> Base Compound V3 cUSDCv3 through contract-call Composer.
+- Arbitrum USDC -> Base USDC
+- Arbitrum USDC -> Ethereum aUSDC, if LI.FI quote supports it.
+- Base USDC -> Base aUSDC, same-chain Composer deposit.
+- Ethereum USDC -> Base aUSDC, if cost is acceptable.
+
+For each route, record:
+
+- `fromChain`, `toChain`, `fromToken`, `toToken`, amount.
+- LI.FI tool chain, e.g. `feeCollection -> across -> composer`.
+- `transactionRequest.to`.
+- Estimated output and minimum output.
+- Whether an API key is required.
+- Whether a tiny live test completed.
+- Final received token balance.
+
+Only routes with at least one successful tiny live test should appear in the demo UI.
+
+Latest coverage finding: preflight correctly rejects unsupported conditional, split, USDT, and Ethereum-preference prompts. The previous candidate/registry drift around `compound-v3-usdc-base` has been addressed by adding Compound to the registry seed, rates normalizer, frontend execution logic, and coverage harness. Retest after redeploying the frontend/API so Somnia's JSON API agent sees the updated `/api/yields` payload.
+
+---
+
+## 11. Repo structure
 
 ```
 scryer/                           # rename to your chosen name
@@ -623,7 +739,7 @@ scryer/                           # rename to your chosen name
 
 ---
 
-## 11. References - keep these open while coding
+## 12. References - keep these open while coding
 
 ### Somnia
 
@@ -679,7 +795,7 @@ scryer/                           # rename to your chosen name
 
 ---
 
-## 12. Glossary
+## 13. Glossary
 
 - **Intent:** a user-signed declaration of desired outcome, not execution detail.
 - **StandardOrder:** the canonical ERC-7683 order struct used by LI.FI Intents and the Open Intents Framework. Single-chain inputs, multi-chain outputs, oracle-verified delivery.
@@ -694,11 +810,11 @@ scryer/                           # rename to your chosen name
 
 ---
 
-## 13. Definition of done for v1
+## 14. Definition of done for v1
 
 - [ ] Deployed contracts on Somnia testnet with verified source, including `GoalRegistry`, `CompilerEngine`, `ReceiptLog`, `IntentStore`, `AddressRegistry`, and `StandardOrderEncoder`.
 - [ ] Demo wallet with sufficient STT to run >10 full goal compilations.
-- [ ] At least 2 working demo goals, end-to-end (goal -> compiled StandardOrder -> LI.FI Intents submission -> status).
+- [ ] At least 2 working demo goals, end-to-end (goal -> compiled plan -> LI.FI Composer route -> destination yield position).
 - [ ] Frontend that shows goal submission, compiled intent view with reasoning, and receipt explorer.
 - [ ] One full demo run recorded as video, <=3 minutes.
 - [ ] README with pitch, architecture, deployed addresses, demo link.
@@ -713,7 +829,7 @@ scryer/                           # rename to your chosen name
 
 ---
 
-## 14. Things to verify in the first hour of building
+## 15. Things to verify in the first hour of building
 
 Before writing any application code:
 
@@ -721,12 +837,12 @@ Before writing any application code:
 2. **Test the `?ask=` mechanism** on the Somnia docs for any specific question: `https://docs.somnia.network/agents/<page>.md?ask=<question>`.
 3. **Confirm LI.FI `GET /v1/tokens?chains=5031`** returns the Somnia token list. If yes, baseline LI.FI chain integration is still present.
 4. **Run one `BtcPriceOracle` example** from the docs verbatim to confirm your local environment works against Somnia testnet.
-5. **Confirm LI.FI Intents endpoints**: `GET https://order.li.fi/chains/supported`, `GET https://order.li.fi/routes`, and whether `POST /orders/submit` accepts frontend submissions without an API key.
+5. **Confirm LI.FI execution endpoints**: `GET https://li.quest/v1/chains`, `GET https://li.quest/v1/tokens`, and at least one executable `GET https://li.quest/v1/quote` into a yield position.
 
 If any of those five fail, stop and resolve before continuing.
 
 ---
 
-## 15. Why this project, in one paragraph
+## 16. Why this project, in one paragraph
 
 Intents are the defining DeFi primitive of 2026. ERC-7683 standardized the data structure. The Open Intents Framework standardized the implementation. LI.FI Intents and others standardized the solver marketplace. What's not standardized - and what the industry has openly identified as missing - is the translation layer that takes a fuzzy human goal and produces a validated intent. Doing this trustlessly requires consensus-verified AI reasoning, which doesn't exist on any chain except Somnia. This project is the first implementation of that translation layer, built directly on the agent stack Somnia ships. Every reasoning step is on-chain. Every validator independently agreed. Every output is auditable forever. The user's funds stay where they are; we compile the intent that moves them.

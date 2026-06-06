@@ -11,6 +11,14 @@ const curatedPools = [
     symbol: "USDC",
     lockup: "none",
   },
+  {
+    poolId: "compound-v3-usdc-base",
+    llamaPoolId: "0c8567f8-ba5b-41ad-80de-00a71895eb19",
+    chainName: "base",
+    project: "compound-v3",
+    symbol: "USDC",
+    lockup: "none",
+  },
 ];
 
 type DefiLlamaPool = {

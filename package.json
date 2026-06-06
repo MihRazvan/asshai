@@ -6,11 +6,12 @@
     "build": "pnpm --filter frontend build",
     "dev": "pnpm --filter frontend dev",
     "contracts:build": "forge build --root contracts",
-    "contracts:test": "forge test --root contracts"
+    "contracts:test": "forge test --root contracts",
+    "coverage:goals": "node frontend/scripts/coverage-harness.mjs",
+    "refund:order": "node frontend/scripts/refund-order.mjs"
   },
   "workspaces": [
     "frontend"
   ],
   "packageManager": "pnpm@10.23.0"
 }
-

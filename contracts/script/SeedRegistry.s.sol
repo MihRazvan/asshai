@@ -15,9 +15,11 @@ contract SeedRegistry is Script {
 
     address internal constant ETHEREUM_AUSDC = 0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c;
     address internal constant BASE_AUSDC = 0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB;
+    address internal constant BASE_COMPOUND_CUSDCV3 = 0xb125E6687d4313864e53df431d5425969c15Eb2F;
     address internal constant ARBITRUM_AUSDC = 0x724dc807b04555b71ed48a6896b6F41593b8C637;
     bytes32 internal constant AAVE_V3_USDC_BASE_SUPPLY = keccak256("aave-v3-usdc-base:supply");
     uint16 internal constant CALLBACK_OUTPUT_BPS = 9_800;
+    uint16 internal constant DIRECT_COMPOSER_OUTPUT_BPS = 9_800;
 
     uint256 internal constant ETHEREUM_CHAIN_ID = 1;
     uint256 internal constant BASE_CHAIN_ID = 8453;
@@ -64,6 +66,21 @@ contract SeedRegistry is Script {
                 chainId: BASE_CHAIN_ID,
                 strategyId: baseYieldReceiver == address(0) ? bytes32(0) : AAVE_V3_USDC_BASE_SUPPLY,
                 outputBps: baseYieldReceiver == address(0) ? 0 : CALLBACK_OUTPUT_BPS,
+                active: true
+            })
+        );
+        registry.setVenue(
+            "base",
+            "compound-v3-usdc-base",
+            AddressRegistry.VenueConfig({
+                deliveryToken: BASE_COMPOUND_CUSDCV3,
+                positionToken: address(0),
+                outputSettler: OUTPUT_SETTLER,
+                oracle: POLYMER_ORACLE_MAINNET,
+                receiver: address(0),
+                chainId: BASE_CHAIN_ID,
+                strategyId: bytes32(0),
+                outputBps: DIRECT_COMPOSER_OUTPUT_BPS,
                 active: true
             })
         );
