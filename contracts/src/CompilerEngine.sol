@@ -188,8 +188,8 @@ contract CompilerEngine {
         GoalRegistry.Goal memory goal = goalRegistry.getGoal(goalId);
         string memory prompt = string.concat(
             "You are a DeFi yield router. Given the user's goal and constraints, select ",
-            "the top 2 pools from the candidates that best fit the goal. Return ONLY pool ",
-            "IDs, comma-separated, no other text.\n\nGoal: \"",
+            "the single best pool from the candidates that best fits the goal. Return ONLY one pool ",
+            "ID, no commas, no other text.\n\nGoal: \"",
             goal.naturalLanguage,
             "\"\nConstraints: ",
             _joinConstraints(goal.constraints),
@@ -266,8 +266,7 @@ contract CompilerEngine {
             "Build an allocation plan. Output ONLY a JSON object in this exact schema:\n",
             "{\"allocations\":[{\"chainName\":\"<name>\",\"poolId\":\"<id>\",\"pct\":<0-100>}],",
             "\"reasoning\":\"<short>\"}\n",
-            "Use lowercase chainName values only. Percentages must sum to exactly 100. ",
-            "Use at most two allocations. Every allocation pct must be greater than 0. ",
+            "Use lowercase chainName values only. Return exactly one allocation with pct 100. ",
             "The allocations value must be an array of allocation objects only. ",
             "Put reasoning after the allocations array, never inside it. ",
             "No markdown. No text before or after the JSON.\n\n",
@@ -277,7 +276,7 @@ contract CompilerEngine {
             _uintToString(goal.sourceAmount),
             " units on chain ",
             _uintToString(goal.sourceChainId),
-            "\nSelected pool IDs to allocate across (you must use all):\n",
+            "\nSelected pool ID to allocate into:\n",
             candidates,
             "\n\nCandidate pool data with canonical lowercase chain names:\n",
             poolData
@@ -344,7 +343,7 @@ contract CompilerEngine {
         emit PlanBuilt(goalId, requestId, plan);
 
         (bool parsed, StandardOrderEncoder.Allocation[] memory allocations) = _parseAllocationPlan(plan);
-        if (!parsed || !_allocationsUseCandidates(goalId, allocations)) {
+        if (!parsed || allocations.length != 1 || !_allocationsUseCandidates(goalId, allocations)) {
             state.currentAgentRequestId = 0;
             state.step = CompileStep.Failed;
             goalRegistry.markFailed(goalId);
