@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-07
 
-Live Somnia testnet compiler: `CompilerEngineV3` at `0x0afe3aDbd8289070Eea637dFd41b34a8fb37F591`.
+Live Somnia testnet compiler: hardened `CompilerEngineV3` at `0x575f48bCC5E369573822dB19C52f4bdf7495cb80`.
 
 ## Why We Changed Direction
 
@@ -188,3 +188,13 @@ The main thing to test is behavioral:
 - Does it honestly fallback when APY targets are impossible?
 
 If those three behaviors are stable, the demo becomes much stronger.
+
+## Live Decision Check
+
+The hardened V3 prompt was tested on Somnia testnet with the three demo-critical behaviors:
+
+- Max yield prompt selected `compound-v3-usdc-base` with `objectiveMatched=max_yield`.
+- Safety prompt selected `aave-v3-usdc-base` with `objectiveMatched=safety`.
+- Impossible 8% APY prompt selected `compound-v3-usdc-base` with `objectiveMatched=fallback` and explicitly reasoned that no verified pool offers 8%+ APY.
+
+Report: `docs/coverage/v3-decision-check-hardened.json`.

@@ -14,7 +14,14 @@ Update: `compound-v3-usdc-base` has now been added as a real Base venue. It uses
 
 Compound live smoke test: `0.098` Base USDC target supplied through LI.FI contract-call Composer. Arbitrum approval `0x37599eb8885681c427011009a33cd8c3093721defa6f87c6324ef362c5b83838`, route tx `0x1f1938696967d60e40df284a34ec3479a962b74ecc409b6ed42d0cd693125732`, status `DONE / COMPLETED`, Base `cUSDCv3` balance delta `0.097997`.
 
-The live Somnia stack is now wired to `CompilerEngineV3` at `0x0afe3aDbd8289070Eea637dFd41b34a8fb37F591`. V3 intentionally compiles only one allocation per goal. It fetches rates, asks the LLM for a constrained decision object, extracts and validates one verified pool ID, stores the decision as a `decision_built` receipt, and deterministically encodes a single StandardOrder-shaped plan. This matches the current LI.FI Composer execution path and turns the receipt trail into a Proof of Reasoning artifact.
+The live Somnia stack is now wired to hardened `CompilerEngineV3` at `0x575f48bCC5E369573822dB19C52f4bdf7495cb80`. V3 intentionally compiles only one allocation per goal. It fetches rates, asks the LLM for a constrained decision object, extracts and validates one verified pool ID, stores the decision as a `decision_built` receipt, and deterministically encodes a single StandardOrder-shaped plan. This matches the current LI.FI Composer execution path and turns the receipt trail into a Proof of Reasoning artifact.
+
+Latest V3 decision check: `docs/coverage/v3-decision-check-hardened.json`.
+
+- `maximize my USDC yield, 7-day lockup` -> `compound-v3-usdc-base`, `objectiveMatched=max_yield`.
+- `safest stablecoin yield, no lockup, prefer Base` -> `aave-v3-usdc-base`, `objectiveMatched=safety`.
+- `find me 8%+ if possible, but don't use sketchy pools` -> `compound-v3-usdc-base`, `objectiveMatched=fallback`, with reasoning that no verified pool offers 8%+ APY.
+- Result: `5/5` supported prompts compiled and `5/5` got LI.FI quote coverage.
 
 The app now has a deterministic policy layer before `postGoal`. The policy lives in `frontend/lib/goal-policy.json` and is consumed by both the Next.js UI and the Node coverage harness. It exposes the supported source, StandardOrder shape, verified venues, LI.FI quote mode, compiler constraints, and unsupported-goal reasons. The same decision is also available through `GET/POST /api/goal-policy`.
 

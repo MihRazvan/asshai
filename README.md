@@ -9,7 +9,7 @@ This repository follows `BUILD_PLAN.md` as the source of truth.
 ## Somnia testnet contracts
 
 - GoalRegistry: `0x3d37cDE79CCcA78334972e6bf1d351f607aF2ca6`
-- CompilerEngineV3: `0x0afe3aDbd8289070Eea637dFd41b34a8fb37F591`
+- CompilerEngineV3: `0x575f48bCC5E369573822dB19C52f4bdf7495cb80`
 - ReceiptLog: `0xCaf26d33E74cc952284AA3aA71a67DBe69deEFC1`
 - IntentStore: `0x0D0891Ae2733E3D8644D1044F497Af4bb63404ea`
 - AddressRegistry: `0x146bd5510D7B488d936b23040062e2ca8Fc26E76`

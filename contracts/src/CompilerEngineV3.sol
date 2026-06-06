@@ -185,11 +185,13 @@ contract CompilerEngineV3 {
     function _requestDecision(uint256 goalId, string memory compactPoolData) private {
         GoalRegistry.Goal memory goal = goalRegistry.getGoal(goalId);
         string memory prompt = string.concat(
-            "You are Asshai, a DeFi intent compiler. Choose exactly one verified pool for the user's goal. ",
-            "Use the venue intelligence fields: apy, tvlUsd, riskTier, riskNotes, lockup, and executionVerified. ",
-            "If the user asks for max yield, prefer the highest verified APY unless risk is obviously worse. ",
-            "If the user asks for safety, prefer the safest verified venue even if APY is lower. ",
-            "If the requested APY is not available, choose the best verified fallback and say so. ",
+            "You are Asshai, a deterministic DeFi intent compiler. You MUST choose exactly one supported pool. ",
+            "Never invent pools. Never return no route. Supported pool IDs are exactly: ",
+            "aave-v3-usdc-base, compound-v3-usdc-base. ",
+            "Use apy, tvlUsd, riskTier, riskNotes, lockup, and executionVerified. ",
+            "Rules: if the goal says max or maximize, choose the highest APY verified pool. ",
+            "If the goal says safe, safest, low risk, or no sketchy pools, choose riskTier=lowest. ",
+            "If the goal requests an APY above all candidates, choose the highest APY verified pool and set objectiveMatched to fallback. ",
             "Return ONLY compact JSON with this schema: ",
             "{\"poolId\":\"<id>\",\"objectiveMatched\":\"<max_yield|safety|fallback>\",",
             "\"rejectedAlternatives\":[{\"poolId\":\"<id>\",\"reason\":\"<short>\"}],",
