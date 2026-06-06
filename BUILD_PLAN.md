@@ -632,9 +632,9 @@ For v1, only support fuzzy stablecoin allocation goals that can be normalized in
   "objective": "maximize yield | safest yield | low gas | prefer chain",
   "constraints": {
     "maxLockupDays": 7,
-    "allowedChains": ["base", "ethereum", "arbitrum"],
+    "allowedChains": ["base"],
     "risk": "low | medium",
-    "singleAllocationPreferred": true
+    "singleAllocationRequired": true
   }
 }
 ```
@@ -646,7 +646,7 @@ Reject or explain unsupported goals instead of hallucinating:
 - Unsupported source tokens or source chains.
 - Venues not present in `AddressRegistry` and not executable through the verified LI.FI route type for that venue.
 
-Current implementation note: the frontend and coverage harness use a deterministic preflight classifier before `postGoal`. It blocks unsupported conditionals, split allocations, unsupported tokens, and unverified destination-chain preferences before spending STT on Somnia compilation. This is intentionally conservative for the demo.
+Current implementation note: the frontend, `/api/goal-policy`, and coverage harness use a deterministic policy layer before `postGoal`. It blocks unsupported conditionals, split allocations, unsupported tokens, and unverified destination-chain preferences before spending STT on Somnia compilation. For supported prompts it returns the full executable envelope: Arbitrum USDC source, single-output ERC-7683 StandardOrder shape, Base destination, verified Aave/Compound venues, LI.FI Composer quote mode, and compiler constraints.
 
 ### Prompt/agent coverage tests
 
@@ -694,7 +694,7 @@ For each route, record:
 
 Only routes with at least one successful tiny live test should appear in the demo UI.
 
-Latest coverage finding: preflight correctly rejects unsupported conditional, split, USDT, and Ethereum-preference prompts. The previous candidate/registry drift around `compound-v3-usdc-base` has been addressed by adding Compound to the registry seed, rates normalizer, frontend execution logic, and coverage harness. Retest after redeploying the frontend/API so Somnia's JSON API agent sees the updated `/api/yields` payload.
+Latest coverage finding: the live stack is wired to `CompilerEngineV2`, which compiles single-allocation intents only. Quote-only coverage at `0.1 USDC` compiled 5 supported prompts, preflight-skipped 4 unsupported prompts, and got LI.FI quote coverage for all compiled cases. The previous candidate/registry drift around `compound-v3-usdc-base` has been addressed by adding Compound to the registry seed, rates normalizer, frontend execution logic, coverage harness, and deterministic policy layer.
 
 ---
 

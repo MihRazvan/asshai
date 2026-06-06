@@ -1,0 +1,110 @@
+{
+  "version": "asshai-v1-single-allocation-2026-06-06",
+  "source": {
+    "chainId": 42161,
+    "chainName": "Arbitrum",
+    "tokenSymbol": "USDC",
+    "tokenAddress": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "decimals": 6
+  },
+  "intentShape": {
+    "standard": "ERC-7683 StandardOrder",
+    "allocationMode": "single",
+    "maxOutputs": 1,
+    "destinationChainName": "Base",
+    "destinationChainId": 8453
+  },
+  "execution": {
+    "provider": "LI.FI Composer",
+    "mode": "quote-then-execute",
+    "quoteReadiness": "verified",
+    "minHarnessAmountUsdc": "0.1",
+    "recommendedDemoAmountUsdc": "1"
+  },
+  "compilerConstraints": ["risk-low", "stablecoin", "single-allocation"],
+  "supportedVenues": [
+    {
+      "poolId": "aave-v3-usdc-base",
+      "label": "Aave V3 USDC on Base",
+      "chainName": "Base",
+      "chainId": 8453,
+      "deliveryTokenSymbol": "aBasUSDC",
+      "deliveryTokenAddress": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+      "positionTokenSymbol": "aBasUSDC",
+      "positionTokenAddress": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+      "executionType": "direct-token-route",
+      "quoteEndpoint": "/api/lifi/quote",
+      "callbackRequired": false,
+      "status": "verified"
+    },
+    {
+      "poolId": "compound-v3-usdc-base",
+      "label": "Compound V3 USDC on Base",
+      "chainName": "Base",
+      "chainId": 8453,
+      "deliveryTokenSymbol": "USDC",
+      "deliveryTokenAddress": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "positionTokenSymbol": "cUSDCv3",
+      "positionTokenAddress": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+      "executionType": "contract-call-route",
+      "quoteEndpoint": "/api/lifi/contract-call-quote",
+      "callbackRequired": true,
+      "status": "verified"
+    }
+  ],
+  "patterns": {
+    "conditional": [
+      "\\bif\\b",
+      "\\bwhen\\b",
+      "\\bwhenever\\b",
+      "\\bbelow\\b",
+      "\\babove\\b",
+      "\\bdrops?\\b",
+      "\\brises?\\b",
+      "\\brebalance\\b",
+      "\\bmonitor\\b",
+      "\\btrigger\\b",
+      "\\bautomatically\\b"
+    ],
+    "split": [
+      "\\bsplit\\b",
+      "\\bdiversify\\b",
+      "\\btwo\\b",
+      "\\bmultiple\\b",
+      "\\bseveral\\b",
+      "\\b50\\s*\\/\\s*50\\b",
+      "\\bhalf\\b",
+      "\\bbetween\\b"
+    ],
+    "unsupportedTokens": [
+      "\\busdt\\b",
+      "\\bdai\\b",
+      "\\beth\\b",
+      "\\bweth\\b",
+      "\\bwbtc\\b",
+      "\\bbtc\\b",
+      "\\bbitcoin\\b",
+      "\\bsol\\b",
+      "\\bsolana\\b"
+    ],
+    "stablecoin": [
+      "\\busdc\\b",
+      "\\bstablecoin\\b",
+      "\\bstablecoins\\b",
+      "\\bstables\\b"
+    ],
+    "ethereumDestination": ["\\bethereum\\b", "\\bmainnet\\b"]
+  },
+  "unsupportedReasons": {
+    "empty": "Enter a stablecoin yield goal first.",
+    "conditional": "Conditional automation is not supported yet. Try a one-time USDC yield allocation instead.",
+    "split": "Split or multi-venue allocations are not supported yet. Try a single-allocation USDC yield goal.",
+    "token": "Only Arbitrum USDC/stablecoin yield goals are supported in v1.",
+    "ethereumDestination": "Ethereum destination venues are not verified yet. Base Aave and Compound USDC are the current supported yield routes."
+  },
+  "warnings": {
+    "assumedSource": "No source asset was specified; v1 assumes Arbitrum USDC.",
+    "highApyTarget": "Requested APY may be above available verified venues; the compiler should choose the best available option."
+  },
+  "maxVerifiedApyTargetPct": 4
+}

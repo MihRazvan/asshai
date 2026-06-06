@@ -323,7 +323,7 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function postGoal({ walletClient, publicClient, addresses, prompt, amountRaw, compilationValue }) {
+async function postGoal({ walletClient, publicClient, addresses, prompt, amountRaw, compilationValue, constraints }) {
   const hash = await walletClient.writeContract({
     address: addresses.goalRegistry,
     abi: goalRegistryAbi,
@@ -333,7 +333,7 @@ async function postGoal({ walletClient, publicClient, addresses, prompt, amountR
       ARBITRUM_USDC,
       amountRaw,
       42161n,
-      ["risk-low", "stablecoin", "single-allocation"],
+      constraints,
       BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60),
     ],
     value: compilationValue,
@@ -579,6 +579,7 @@ async function main() {
       if (preflight.warnings.length > 0) {
         console.log(`  preflight warnings: ${preflight.warnings.join(" | ")}`);
       }
+      console.log(`  policy: ${preflight.policyVersion}; candidates: ${preflight.candidatePoolIds.join(", ")}`);
 
       const posted = await postGoal({
         walletClient,
@@ -587,6 +588,7 @@ async function main() {
         prompt: testCase.prompt,
         amountRaw,
         compilationValue,
+        constraints: preflight.compilerConstraints,
       });
       result.goalId = posted.goalId.toString();
       result.postGoalTx = posted.hash;

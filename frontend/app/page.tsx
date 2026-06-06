@@ -47,7 +47,7 @@ export default function Home() {
         arbitrumUsdc,
         parseUnits("1", 6),
         BigInt(42161),
-        ["risk-low", "stablecoin"],
+        goalSupport.compilerConstraints,
         BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60),
       ],
       value: parseEther("0.6"),
@@ -71,6 +71,31 @@ export default function Home() {
         {goalSupport.warnings.map((warning) => (
           <p key={warning}>Warning: {warning}</p>
         ))}
+        {goal ? (
+          <section>
+            <h2>Executable envelope</h2>
+            <p>Policy: {goalSupport.policyVersion}</p>
+            <p>
+              Source: {goalSupport.source.tokenSymbol} on {goalSupport.source.chainName} (
+              {goalSupport.source.chainId})
+            </p>
+            <p>
+              Intent shape: {goalSupport.intentShape.standard}, {goalSupport.intentShape.allocationMode} allocation,
+              max {goalSupport.intentShape.maxOutputs} output
+            </p>
+            <p>
+              Execution: {goalSupport.execution.provider}, {goalSupport.execution.quoteReadiness} quotes
+            </p>
+            <p>Candidate pools: {goalSupport.candidatePoolIds.join(", ")}</p>
+            <ul>
+              {goalSupport.supportedVenues.map((venue) => (
+                <li key={venue.poolId}>
+                  {venue.label}: {venue.executionType}, {venue.callbackRequired ? "callback required" : "no callback"}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         <button type="submit" disabled={!isConnected || isPending || !goalSupport.supported}>
           {isPending ? "Submitting..." : "Submit goal"}
         </button>
