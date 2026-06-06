@@ -179,6 +179,63 @@ function isCompoundBaseOutput(output: StandardOrder["outputs"][number]) {
   return bytes32ToAddress(output.token).toLowerCase() === BASE_COMPOUND_CUSDCV3.toLowerCase();
 }
 
+type RatesVenue = Record<string, string>;
+
+function parseRatesPayload(payload: string): RatesVenue[] {
+  if (!payload) {
+    return [];
+  }
+
+  return payload
+    .split("|")
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .map((row) =>
+      Object.fromEntries(
+        row
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .map((part) => {
+            const [key, ...valueParts] = part.split("=");
+            return [key, valueParts.join("=")];
+          })
+          .filter(([key]) => Boolean(key)),
+      ),
+    );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function decisionFromPlan(value: unknown) {
+  const plan = asRecord(value);
+  const decision = plan?.decision;
+
+  if (typeof decision !== "string") {
+    return undefined;
+  }
+
+  return tryParseJson(decision);
+}
+
+function receiptLabel(stepName: string) {
+  const labels: Record<string, string> = {
+    rates_fetched: "Fetched verified venue data",
+    decision_built: "Built consensus decision",
+    candidates_selected: "Validated selected pool",
+    plan_built: "Built deterministic Solidity plan",
+    order_encoded: "Encoded StandardOrder-shaped artifact",
+  };
+
+  return labels[stepName] ?? stepName;
+}
+
 type LifiQuote = {
   tool?: string;
   estimate?: {
@@ -264,6 +321,9 @@ export function IntentClient({ goalId }: { goalId: string }) {
   const selectedPoolId = selectedReceipt ? decodeString(selectedReceipt.data as Hex) : "";
   const planText = planReceipt ? decodeString(planReceipt.data as Hex) : "";
   const planJson = planText ? tryParseJson(planText) : undefined;
+  const planRecord = asRecord(planJson);
+  const planDecisionJson = decisionFromPlan(planJson);
+  const ratesVenues = useMemo(() => parseRatesPayload(ratesText), [ratesText]);
 
   useEffect(() => {
     if (!routeHash) return;
@@ -348,7 +408,9 @@ export function IntentClient({ goalId }: { goalId: string }) {
 
     setLifiQuote(body);
     setQuoteStatus(
-      `Quote ready via ${body.tool ?? "LI.FI"}: ${formatUnits(BigInt(body.estimate?.toAmount ?? "0"), 6)} output tokens.`,
+      isCompound
+        ? `Quote ready via ${body.tool ?? "LI.FI"}: bridge ${formatUnits(output.amount, 6)} Base USDC and supply it into Compound V3 for cUSDCv3.`
+        : `Quote ready via ${body.tool ?? "LI.FI"}: ${formatUnits(BigInt(body.estimate?.toAmount ?? "0"), 6)} output tokens.`,
     );
   }
 
@@ -402,7 +464,27 @@ export function IntentClient({ goalId }: { goalId: string }) {
         <h3>User goal</h3>
         {goal ? <p>{goal.naturalLanguage}</p> : <p>Loading goal...</p>}
         <h3>Data considered</h3>
-        {ratesText ? <pre>{ratesText}</pre> : <p>Waiting for rates receipt.</p>}
+        {ratesVenues.length > 0 ? (
+          <ul>
+            {ratesVenues.map((venue) => (
+              <li key={venue.poolId ?? JSON.stringify(venue)}>
+                <p>
+                  {venue.poolId}: {venue.project} on {venue.chainName}
+                </p>
+                <p>
+                  APY {venue.apy ?? "unknown"}%, TVL ${venue.tvlUsd ?? "unknown"}, lockup {venue.lockup ?? "unknown"},
+                  risk {venue.riskTier ?? "unknown"}
+                </p>
+                {venue.riskNotes ? <p>{venue.riskNotes}</p> : null}
+                {venue.executionPath ? <p>Execution: {venue.executionPath}</p> : null}
+              </li>
+            ))}
+          </ul>
+        ) : ratesText ? (
+          <pre>{ratesText}</pre>
+        ) : (
+          <p>Waiting for rates receipt.</p>
+        )}
         <h3>Consensus agent decision</h3>
         {decisionText ? (
           <>
@@ -413,7 +495,21 @@ export function IntentClient({ goalId }: { goalId: string }) {
           <p>Waiting for decision receipt.</p>
         )}
         <h3>Deterministic Solidity plan</h3>
-        {planText ? <pre>{planJson ? prettyJson(planJson) : planText}</pre> : <p>Waiting for plan receipt.</p>}
+        {planRecord ? (
+          <>
+            <pre>{prettyJson({ allocations: planRecord.allocations })}</pre>
+            {planDecisionJson ? (
+              <>
+                <p>Decision embedded in stored plan:</p>
+                <pre>{prettyJson(planDecisionJson)}</pre>
+              </>
+            ) : null}
+          </>
+        ) : planText ? (
+          <pre>{planText}</pre>
+        ) : (
+          <p>Waiting for plan receipt.</p>
+        )}
       </section>
 
       <section>
@@ -530,8 +626,9 @@ export function IntentClient({ goalId }: { goalId: string }) {
           <ol>
             {receipts.map((entry) => (
               <li key={`${entry.stepName}-${entry.agentRequestId}`}>
-                {entry.stepName} at {new Date(Number(entry.timestamp) * 1000).toISOString()}
+                {receiptLabel(entry.stepName)} at {new Date(Number(entry.timestamp) * 1000).toISOString()}
                 {entry.agentRequestId > 0n ? `, request ${entry.agentRequestId.toString()}` : ""}
+                {entry.stepName === "decision_built" ? <pre>{decodeString(entry.data as Hex)}</pre> : null}
                 {entry.stepName === "plan_built" ? <pre>{decodeString(entry.data as Hex)}</pre> : null}
               </li>
             ))}

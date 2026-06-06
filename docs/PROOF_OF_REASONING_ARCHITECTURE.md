@@ -198,3 +198,15 @@ The hardened V3 prompt was tested on Somnia testnet with the three demo-critical
 - Impossible 8% APY prompt selected `compound-v3-usdc-base` with `objectiveMatched=fallback` and explicitly reasoned that no verified pool offers 8%+ APY.
 
 Report: `docs/coverage/v3-decision-check-hardened.json`.
+
+## Live UI Execution Check
+
+The deployed frontend has also executed the three demo behaviors end-to-end:
+
+| Goal ID | Prompt | Decision | Execution Result |
+|---|---|---|---|
+| `62` | `maximize my USDC yield, 7-day lockup` | `compound-v3-usdc-base`, `objectiveMatched=max_yield` | LI.FI Composer completed into `cUSDCv3` |
+| `63` | `safest stablecoin yield, no lockup, prefer Base` | `aave-v3-usdc-base`, `objectiveMatched=safety` | LI.FI Composer completed into `aBasUSDC` |
+| `64` | `find me 8%+ if possible, but don't use sketchy pools` | `compound-v3-usdc-base`, `objectiveMatched=fallback` | LI.FI Composer completed into `cUSDCv3` |
+
+This validates the current demo thesis: the same verified venue set can produce different auditable decisions depending on the user's fuzzy objective, and impossible targets are handled as honest fallback rather than hallucinated yield.
