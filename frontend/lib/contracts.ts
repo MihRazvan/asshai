@@ -4,7 +4,7 @@ export const goalRegistryAddress = (process.env.NEXT_PUBLIC_GOAL_REGISTRY_ADDRES
   "0x3d37cDE79CCcA78334972e6bf1d351f607aF2ca6") as Address;
 
 export const compilerEngineAddress = (process.env.NEXT_PUBLIC_COMPILER_ENGINE_ADDRESS ||
-  "0x575f48bCC5E369573822dB19C52f4bdf7495cb80") as Address;
+  "0x9B09F49133D227203C0b9CC4A83548E80D38B079") as Address;
 
 export const receiptLogAddress = (process.env.NEXT_PUBLIC_RECEIPT_LOG_ADDRESS ||
   "0xCaf26d33E74cc952284AA3aA71a67DBe69deEFC1") as Address;

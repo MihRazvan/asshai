@@ -135,6 +135,7 @@ type LifiStatusBody = {
     amount?: string;
     token?: {
       symbol?: string;
+      decimals?: number;
     };
   };
 };
@@ -281,6 +282,10 @@ function venueByPoolId(poolId?: string) {
   return goalPolicy.supportedVenues.find((venue) => venue.poolId === poolId);
 }
 
+function outputDecimals(venue?: { positionTokenDecimals?: number }) {
+  return venue?.positionTokenDecimals ?? 6;
+}
+
 function objectiveClass(objective?: string) {
   if (objective === "safety") return "objective-pill objective-safety";
   if (objective === "fallback") return "objective-pill objective-fallback";
@@ -360,6 +365,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
   const planDecisionJson = decisionFromPlan(planJson);
   const activeDecision = decisionJson ?? planDecisionJson;
   const selectedVenue = venueByPoolId(selectedPoolId);
+  const selectedVenueDecimals = outputDecimals(selectedVenue);
   const output = order?.outputs[0];
   const input = order?.inputs[0];
   const inputToken = input ? tokenIdentifierToAddress(input[0]) : undefined;
@@ -457,7 +463,10 @@ export function IntentClient({ goalId }: { goalId: string }) {
     setQuoteStatus(
       isCompound
         ? `Quote ready via ${body.tool ?? "LI.FI"}: bridge ${formatUnits(output.amount, 6)} Base USDC and supply it into Compound V3 for cUSDCv3.`
-        : `Quote ready via ${body.tool ?? "LI.FI"}: ${formatUnits(BigInt(body.estimate?.toAmount ?? "0"), 6)} output tokens.`,
+        : `Quote ready via ${body.tool ?? "LI.FI"}: ${formatUnits(
+            BigInt(body.estimate?.toAmount ?? "0"),
+            selectedVenueDecimals,
+          )} ${selectedVenue?.positionTokenSymbol ?? "output tokens"}.`,
     );
   }
 
@@ -472,7 +481,14 @@ export function IntentClient({ goalId }: { goalId: string }) {
     setLifiStatusBody(body);
     setLifiStatus(
       body?.status
-        ? `${body.status}${body.substatus ? ` / ${body.substatus}` : ""}${body.receiving?.amount ? ` (${formatUnits(BigInt(body.receiving.amount), 6)} ${body.receiving?.token?.symbol ?? ""})` : ""}`
+        ? `${body.status}${body.substatus ? ` / ${body.substatus}` : ""}${
+            body.receiving?.amount
+              ? ` (${formatUnits(
+                  BigInt(body.receiving.amount),
+                  body.receiving.token?.decimals ?? selectedVenueDecimals,
+                )} ${body.receiving?.token?.symbol ?? ""})`
+              : ""
+          }`
         : body?.message ?? JSON.stringify(body),
     );
   }
@@ -512,7 +528,10 @@ export function IntentClient({ goalId }: { goalId: string }) {
       ? "Your intent is compiled and ready."
       : "Compiling your intent on-chain.";
   const finalAmount = lifiStatusBody?.receiving?.amount
-    ? `${formatUnits(BigInt(lifiStatusBody.receiving.amount), 6)} ${lifiStatusBody.receiving.token?.symbol ?? ""}`
+    ? `${formatUnits(
+        BigInt(lifiStatusBody.receiving.amount),
+        lifiStatusBody.receiving.token?.decimals ?? selectedVenueDecimals,
+      )} ${lifiStatusBody.receiving.token?.symbol ?? ""}`
     : undefined;
 
   return (
@@ -578,7 +597,13 @@ export function IntentClient({ goalId }: { goalId: string }) {
                 ) : null}
                 {step.stepName === "plan_built" ? (
                   order && selectedVenue && output ? (
-                    <PlanSummary order={order} output={output} venueLabel={selectedVenue.label} outputToken={outputToken} />
+                    <PlanSummary
+                      order={order}
+                      output={output}
+                      venueLabel={selectedVenue.label}
+                      outputToken={outputToken}
+                      positionTokenSymbol={selectedVenue.positionTokenSymbol}
+                    />
                   ) : (
                     <PendingBox label="Waiting for deterministic plan..." />
                   )
@@ -800,12 +825,16 @@ function PlanSummary({
   output,
   venueLabel,
   outputToken,
+  positionTokenSymbol,
 }: {
   order: StandardOrder;
   output: StandardOrder["outputs"][number];
   venueLabel: string;
   outputToken?: Hex;
+  positionTokenSymbol?: string;
 }) {
+  const sourceAmount = order.inputs[0]?.[1] ?? output.amount;
+
   return (
     <div className="plan-summary">
       <div>
@@ -813,8 +842,8 @@ function PlanSummary({
         <strong>Base</strong>
       </div>
       <div>
-        <span>Amount</span>
-        <strong>{formatUnits(output.amount, 6)} USDC</strong>
+        <span>Source amount</span>
+        <strong>{formatUnits(sourceAmount, 6)} USDC</strong>
       </div>
       <div>
         <span>Action</span>
@@ -826,7 +855,9 @@ function PlanSummary({
       </div>
       <div>
         <span>Position token</span>
-        <strong>{outputToken ? shortHash(outputToken) : "pending"}</strong>
+        <strong>
+          {positionTokenSymbol ?? "Position"} {outputToken ? shortHash(outputToken) : "pending"}
+        </strong>
       </div>
       <div>
         <span>Origin</span>

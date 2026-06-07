@@ -16,6 +16,10 @@ contract SeedRegistry is Script {
     address internal constant ETHEREUM_AUSDC = 0x98C23E9d8f34FEFb1B7BD6a91B7FF122F4e16F5c;
     address internal constant BASE_AUSDC = 0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB;
     address internal constant BASE_COMPOUND_CUSDCV3 = 0xb125E6687d4313864e53df431d5425969c15Eb2F;
+    address internal constant BASE_SPARK_USDC_VAULT = 0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A;
+    address internal constant BASE_MOONWELL_FLAGSHIP_USDC_VAULT = 0xc1256Ae5FF1cf2719D4937adb3bbCCab2E00A2Ca;
+    address internal constant BASE_FLUID_USDC = 0xf42f5795D9ac7e9D757dB633D693cD548Cfd9169;
+    address internal constant BASE_STEAKHOUSE_PRIME_USDC = 0xbeef0e0834849aCC03f0089F01f4F1Eeb06873C9;
     address internal constant ARBITRUM_AUSDC = 0x724dc807b04555b71ed48a6896b6F41593b8C637;
     bytes32 internal constant AAVE_V3_USDC_BASE_SUPPLY = keccak256("aave-v3-usdc-base:supply");
     uint16 internal constant CALLBACK_OUTPUT_BPS = 9_800;
@@ -74,6 +78,66 @@ contract SeedRegistry is Script {
             "compound-v3-usdc-base",
             AddressRegistry.VenueConfig({
                 deliveryToken: BASE_COMPOUND_CUSDCV3,
+                positionToken: address(0),
+                outputSettler: OUTPUT_SETTLER,
+                oracle: POLYMER_ORACLE_MAINNET,
+                receiver: address(0),
+                chainId: BASE_CHAIN_ID,
+                strategyId: bytes32(0),
+                outputBps: DIRECT_COMPOSER_OUTPUT_BPS,
+                active: true
+            })
+        );
+        registry.setVenue(
+            "base",
+            "morpho-spark-usdc-base",
+            AddressRegistry.VenueConfig({
+                deliveryToken: BASE_SPARK_USDC_VAULT,
+                positionToken: address(0),
+                outputSettler: OUTPUT_SETTLER,
+                oracle: POLYMER_ORACLE_MAINNET,
+                receiver: address(0),
+                chainId: BASE_CHAIN_ID,
+                strategyId: bytes32(0),
+                outputBps: DIRECT_COMPOSER_OUTPUT_BPS,
+                active: true
+            })
+        );
+        registry.setVenue(
+            "base",
+            "morpho-moonwell-flagship-usdc-base",
+            AddressRegistry.VenueConfig({
+                deliveryToken: BASE_MOONWELL_FLAGSHIP_USDC_VAULT,
+                positionToken: address(0),
+                outputSettler: OUTPUT_SETTLER,
+                oracle: POLYMER_ORACLE_MAINNET,
+                receiver: address(0),
+                chainId: BASE_CHAIN_ID,
+                strategyId: bytes32(0),
+                outputBps: DIRECT_COMPOSER_OUTPUT_BPS,
+                active: true
+            })
+        );
+        registry.setVenue(
+            "base",
+            "fluid-usdc-base",
+            AddressRegistry.VenueConfig({
+                deliveryToken: BASE_FLUID_USDC,
+                positionToken: address(0),
+                outputSettler: OUTPUT_SETTLER,
+                oracle: POLYMER_ORACLE_MAINNET,
+                receiver: address(0),
+                chainId: BASE_CHAIN_ID,
+                strategyId: bytes32(0),
+                outputBps: DIRECT_COMPOSER_OUTPUT_BPS,
+                active: true
+            })
+        );
+        registry.setVenue(
+            "base",
+            "steakhouse-prime-usdc-base",
+            AddressRegistry.VenueConfig({
+                deliveryToken: BASE_STEAKHOUSE_PRIME_USDC,
                 positionToken: address(0),
                 outputSettler: OUTPUT_SETTLER,
                 oracle: POLYMER_ORACLE_MAINNET,

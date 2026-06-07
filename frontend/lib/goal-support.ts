@@ -9,6 +9,7 @@ export type SupportedVenue = {
   deliveryTokenAddress: string;
   positionTokenSymbol: string;
   positionTokenAddress: string;
+  positionTokenDecimals: number;
   executionType: string;
   quoteEndpoint: string;
   callbackRequired: boolean;
