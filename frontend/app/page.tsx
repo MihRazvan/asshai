@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ShieldAlert } from "lucide-react";
 import { decodeAbiParameters, Hex, parseEther, parseEventLogs, parseUnits } from "viem";
-import { useAccount, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useAccount, useReadContracts, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { ReceiptCard } from "@/components/asshai/ReceiptCard";
 import { goalRegistryAbi, goalRegistryAddress, receiptLogAbi, receiptLogAddress } from "@/lib/contracts";
 import { classifyGoalSupport, goalPolicy } from "@/lib/goal-support";
@@ -90,13 +90,16 @@ function venueByPoolId(poolId: string | undefined) {
 
 export default function Home() {
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { chainId, isConnected } = useAccount();
+  const { switchChain } = useSwitchChain();
   const { data: hash, error, isPending, writeContract } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash });
   const [goal, setGoal] = useState("");
   const [goalId, setGoalId] = useState<bigint>();
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const goalSupport = useMemo(() => classifyGoalSupport(goal), [goal]);
+  const walletChainKnown = !isConnected || typeof chainId === "number";
+  const mustSwitchToSomnia = Boolean(isConnected && typeof chainId === "number" && chainId !== somniaTestnet.id);
 
   const recentContracts = featuredGoalIds.flatMap((id) => [
     {
@@ -166,12 +169,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (isConnected && !goal) {
-      setGoal("maximize my USDC yield with low risk");
-    }
-  }, [goal, isConnected]);
-
-  useEffect(() => {
     if (!receipt.data) {
       return;
     }
@@ -193,6 +190,11 @@ export default function Home() {
       return;
     }
 
+    if (mustSwitchToSomnia) {
+      switchChain({ chainId: somniaTestnet.id });
+      return;
+    }
+
     writeContract({
       address: goalRegistryAddress,
       abi: goalRegistryAbi,
@@ -206,6 +208,7 @@ export default function Home() {
         BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60),
       ],
       value: parseEther("0.6"),
+      chainId: somniaTestnet.id,
     });
   }
 
@@ -258,8 +261,18 @@ export default function Home() {
           </p>
         ))}
 
-        <button className="primary-cta" type="submit" disabled={!isConnected || isPending || !goalSupport.supported}>
-          {isPending ? "Submitting to Somnia..." : "Compile intent"}
+        <button
+          className="primary-cta"
+          type="submit"
+          disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported}
+        >
+          {isPending
+            ? "Submitting to Somnia..."
+            : !walletChainKnown
+              ? "Checking wallet network..."
+              : mustSwitchToSomnia
+                ? "Switch to Somnia Testnet"
+                : "Compile intent"}
         </button>
 
         <p className="somnia-note">

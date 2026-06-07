@@ -1,22 +1,22 @@
 import type { Address } from "viem";
 
 export const goalRegistryAddress = (process.env.NEXT_PUBLIC_GOAL_REGISTRY_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as Address;
+  "0x3d37cDE79CCcA78334972e6bf1d351f607aF2ca6") as Address;
 
 export const compilerEngineAddress = (process.env.NEXT_PUBLIC_COMPILER_ENGINE_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as Address;
+  "0x575f48bCC5E369573822dB19C52f4bdf7495cb80") as Address;
 
 export const receiptLogAddress = (process.env.NEXT_PUBLIC_RECEIPT_LOG_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as Address;
+  "0xCaf26d33E74cc952284AA3aA71a67DBe69deEFC1") as Address;
 
 export const intentStoreAddress = (process.env.NEXT_PUBLIC_INTENT_STORE_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as Address;
+  "0x0D0891Ae2733E3D8644D1044F497Af4bb63404ea") as Address;
 
 export const addressRegistryAddress = (process.env.NEXT_PUBLIC_ADDRESS_REGISTRY_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as Address;
+  "0x146bd5510D7B488d936b23040062e2ca8Fc26E76") as Address;
 
 export const standardOrderEncoderAddress = (process.env.NEXT_PUBLIC_STANDARD_ORDER_ENCODER_ADDRESS ||
-  "0x0000000000000000000000000000000000000000") as Address;
+  "0xB9084F50D6F75006953F69741762548990B334E7") as Address;
 
 export const inputSettlerEscrowAddress = "0x000025c3226C00B2Cdc200005a1600509f4e00C0" as Address;
 

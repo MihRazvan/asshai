@@ -553,6 +553,10 @@ a {
   font-weight: 500;
 }
 
+.timeline-content {
+  min-width: 0;
+}
+
 .venue-table,
 .decision-panel,
 .plan-summary,
@@ -588,6 +592,14 @@ a {
 .venue-table-row {
   border-top: 1px solid var(--border);
   color: var(--text-secondary);
+}
+
+.venue-table-head > span,
+.venue-table-row > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .venue-table-row > span:first-child {
@@ -835,10 +847,27 @@ a {
 }
 
 .filled-card {
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 0.8rem;
   background: var(--surface-1);
   padding: 1rem;
+}
+
+.filled-card .timeline-step {
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+}
+
+.filled-card .venue-table {
+  overflow-x: auto;
+}
+
+.filled-card .venue-table-head,
+.filled-card .venue-table-row {
+  grid-template-columns: minmax(9rem, 1.3fr) 0.55fr 0.7fr 0.7fr 0.6fr 0.72fr;
+  gap: 0.65rem;
+  min-width: 38rem;
 }
 
 .filled-card > h2 {
