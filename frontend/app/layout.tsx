@@ -2,7 +2,26 @@ import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 
 import type { Metadata } from "next";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { AsshaiHeader } from "@/components/asshai/AsshaiHeader";
+import { AuroraBackdrop } from "@/components/asshai/AuroraBackdrop";
 import { Providers } from "./providers";
+
+const geistSans = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-display",
+});
 
 export const metadata: Metadata = {
   title: "Asshai",
@@ -16,8 +35,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>
-        <Providers>{children}</Providers>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`}>
+        <Providers>
+          <AuroraBackdrop />
+          <AsshaiHeader />
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -1,0 +1,16 @@
+export const designTokens = {
+  background: "var(--background)",
+  surface1: "var(--surface-1)",
+  surface2: "var(--surface-2)",
+  border: "var(--border)",
+  borderStrong: "var(--border-strong)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  textTertiary: "var(--text-tertiary)",
+  textQuaternary: "var(--text-quaternary)",
+  accent: "var(--accent)",
+  accentSoft: "var(--accent-soft)",
+  success: "var(--success)",
+  warning: "var(--warning)",
+  danger: "var(--danger)",
+} as const;

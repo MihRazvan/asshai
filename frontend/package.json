@@ -11,9 +11,13 @@
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.9",
     "@tanstack/react-query": "^5.90.10",
+    "framer-motion": "^12.40.0",
+    "geist": "^1.7.2",
+    "lucide-react": "^1.17.0",
     "next": "^16.0.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "sonner": "^2.0.7",
     "viem": "^2.40.3",
     "wagmi": "^2.19.2"
   },
@@ -24,4 +28,3 @@
     "typescript": "^5.9.3"
   }
 }
-
