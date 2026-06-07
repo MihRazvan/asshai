@@ -95,9 +95,23 @@ export default function Home() {
   const { data: hash, error, isPending, writeContract } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash });
   const [goal, setGoal] = useState("");
+  const [sourceAmountInput, setSourceAmountInput] = useState("1");
   const [goalId, setGoalId] = useState<bigint>();
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const goalSupport = useMemo(() => classifyGoalSupport(goal), [goal]);
+  const sourceAmount = useMemo(() => {
+    const trimmed = sourceAmountInput.trim();
+    if (!/^\d+(?:\.\d{1,6})?$/.test(trimmed)) {
+      return undefined;
+    }
+
+    try {
+      const parsed = parseUnits(trimmed, 6);
+      return parsed > 0n ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [sourceAmountInput]);
   const walletChainKnown = !isConnected || typeof chainId === "number";
   const mustSwitchToSomnia = Boolean(isConnected && typeof chainId === "number" && chainId !== somniaTestnet.id);
 
@@ -190,6 +204,10 @@ export default function Home() {
       return;
     }
 
+    if (!sourceAmount) {
+      return;
+    }
+
     if (mustSwitchToSomnia) {
       switchChain({ chainId: somniaTestnet.id });
       return;
@@ -202,7 +220,7 @@ export default function Home() {
       args: [
         goal,
         arbitrumUsdc,
-        parseUnits("1", 6),
+        sourceAmount,
         BigInt(42161),
         goalSupport.compilerConstraints,
         BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60),
@@ -238,6 +256,29 @@ export default function Home() {
           <span className="compile-hint">⌘ ↵ to compile</span>
         </div>
 
+        <div className="amount-row">
+          <label htmlFor="source-amount">
+            Amount
+            <span>Arbitrum USDC</span>
+          </label>
+          <div className="amount-input-wrap">
+            <input
+              id="source-amount"
+              inputMode="decimal"
+              min="0"
+              pattern="[0-9]+([.][0-9]{1,6})?"
+              title="Enter a USDC amount greater than 0, up to 6 decimals."
+              type="text"
+              value={sourceAmountInput}
+              onChange={(event) => setSourceAmountInput(event.target.value)}
+              placeholder="1"
+            />
+            <span>USDC</span>
+          </div>
+        </div>
+
+        {!sourceAmount ? <p className="tx-result">Enter a USDC amount greater than 0, up to 6 decimals.</p> : null}
+
         {showUnsupported ? (
           <motion.div
             className="unsupported-card"
@@ -264,7 +305,7 @@ export default function Home() {
         <button
           className="primary-cta"
           type="submit"
-          disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported}
+          disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
         >
           {isPending
             ? "Submitting to Somnia..."
