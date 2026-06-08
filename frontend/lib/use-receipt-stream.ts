@@ -56,14 +56,14 @@ function decodeReceiptPayload(stepName: string, data: Hex) {
 }
 
 export function useReceiptStream(goalId: bigint, goalStatus?: number) {
-  const isCompiling = goalStatus === 1;
+  const shouldPollReceipts = goalStatus === 1 || goalStatus === 2;
   const { data: receipts } = useReadContract({
     address: receiptLogAddress,
     abi: receiptLogAbi,
     functionName: "getEntries",
     args: [goalId],
     chainId: somniaTestnet.id,
-    query: { enabled: goalId >= 0n, refetchInterval: isCompiling ? 1_500 : false },
+    query: { enabled: goalId >= 0n, refetchInterval: shouldPollReceipts ? 1_500 : false },
   });
 
   const steps = useMemo<AgentStep[]>(() => {
@@ -89,13 +89,13 @@ export function useReceiptStream(goalId: bigint, goalStatus?: number) {
       return {
         id: `${stepName}-virtual`,
         stepName,
-        status: isCompiling && index === streamingIndex ? "streaming" : "pending",
+        status: shouldPollReceipts && index === streamingIndex ? "streaming" : "pending",
         timestamp: 0,
         payload: undefined,
         requestId: 0n,
       };
     });
-  }, [isCompiling, receipts]);
+  }, [shouldPollReceipts, receipts]);
 
   return { receipts, steps };
 }

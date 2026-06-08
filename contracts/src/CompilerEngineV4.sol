@@ -139,6 +139,23 @@ contract CompilerEngineV4 {
         receiptLog.log(goalId, "rates_fetched", abi.encode(rates), requestId);
         emit RatesFetched(goalId, requestId, abi.encode(rates));
 
+        // Keep the platform callback recoverable: if the LLM handoff runs out of
+        // gas or reverts, the rates receipt remains visible and the goal fails
+        // cleanly instead of being stranded in FetchingRates.
+        try this.requestDecisionFromStoredRates{gas: 14_000_000}(goalId) {}
+        catch {
+            _fail(goalId, requestId, ResponseStatus.Failed);
+        }
+    }
+
+    function requestDecisionFromStoredRates(uint256 goalId) external {
+        require(msg.sender == address(this) || msg.sender == owner, "Only continuation");
+
+        CompileState storage state = compileStates[goalId];
+        require(state.step == CompileStep.BuildingDecision, "Not ready");
+        require(state.ratesPayload.length > 0, "Missing rates");
+
+        string memory rates = abi.decode(state.ratesPayload, (string));
         _requestDecision(goalId, rates);
     }
 
@@ -233,7 +250,7 @@ contract CompilerEngineV4 {
             "Never invent pools. Never return no route. Supported pool IDs are exactly: ",
             "aave-v3-usdc-base, compound-v3-usdc-base, morpho-spark-usdc-base, ",
             "morpho-moonwell-flagship-usdc-base, fluid-usdc-base, steakhouse-prime-usdc-base. ",
-            "Use apy, tvlUsd, riskTier, riskNotes, venueType, lockup, executionVerified, and executionPath. "
+            "Use project, apy, tvlUsd, riskTier, and lockup. "
         );
     }
 

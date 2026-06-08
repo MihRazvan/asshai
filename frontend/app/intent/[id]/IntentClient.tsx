@@ -282,6 +282,20 @@ function venueByPoolId(poolId?: string) {
   return goalPolicy.supportedVenues.find((venue) => venue.poolId === poolId);
 }
 
+function venueByOutputToken(token?: Hex) {
+  if (!token) {
+    return undefined;
+  }
+
+  const normalizedToken = token.toLowerCase();
+
+  return goalPolicy.supportedVenues.find(
+    (venue) =>
+      venue.positionTokenAddress.toLowerCase() === normalizedToken ||
+      venue.deliveryTokenAddress.toLowerCase() === normalizedToken,
+  );
+}
+
 function outputDecimals(venue?: { positionTokenDecimals?: number }) {
   return venue?.positionTokenDecimals ?? 6;
 }
@@ -360,17 +374,18 @@ export function IntentClient({ goalId }: { goalId: string }) {
   const ratesText = decodeStringData(ratesStep?.payload);
   const ratesVenues = useMemo(() => parseRatesPayload(ratesText), [ratesText]);
   const decisionJson = asDecision(decisionStep?.payload);
-  const selectedPoolId = decodeStringData(selectedStep?.payload) || decisionJson?.poolId;
   const planJson = planStep?.payload;
   const planDecisionJson = decisionFromPlan(planJson);
   const activeDecision = decisionJson ?? planDecisionJson;
-  const selectedVenue = venueByPoolId(selectedPoolId);
-  const selectedVenueDecimals = outputDecimals(selectedVenue);
   const output = order?.outputs[0];
   const input = order?.inputs[0];
   const inputToken = input ? tokenIdentifierToAddress(input[0]) : undefined;
   const inputAmount = input?.[1] ?? 0n;
   const outputToken = output ? finalOutputToken(output) : undefined;
+  const selectedPoolIdFromReceipts = decodeStringData(selectedStep?.payload) || activeDecision?.poolId;
+  const selectedVenue = venueByPoolId(selectedPoolIdFromReceipts) ?? venueByOutputToken(outputToken);
+  const selectedPoolId = selectedPoolIdFromReceipts ?? selectedVenue?.poolId;
+  const selectedVenueDecimals = outputDecimals(selectedVenue);
   const outputChainId = output ? Number(output.chainId) : undefined;
   const originChainId = order ? Number(order.originChainId) : undefined;
   const mustSwitchToOrigin = Boolean(originChainId && chainId !== originChainId);
