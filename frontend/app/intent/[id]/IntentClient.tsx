@@ -7,7 +7,6 @@ import { useReadContract } from "wagmi";
 import { HeroBand } from "@/components/receipt/HeroBand";
 import { InspectorDrawer, type InspectorPayload } from "@/components/receipt/InspectorDrawer";
 import { ReceiptTabs } from "@/components/receipt/ReceiptTabs";
-import { Card } from "@/components/ui/card";
 import {
   addressRegistryAddress,
   compilerEngineAddress,
@@ -348,21 +347,21 @@ function PendingCompileCard({
       : `${realSteps.length} compiler receipt${realSteps.length === 1 ? "" : "s"} recorded.`;
 
   return (
-    <Card className="mx-auto w-full max-w-[64rem] border-accent/25 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.12),transparent_24rem),rgba(7,8,8,0.82)] p-6 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_15rem]">
+    <section className="mx-auto w-full max-w-[64rem] overflow-hidden rounded-2xl border border-white/[0.1] bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.055),transparent_24rem),rgba(7,8,8,0.82)] p-6 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.26)] backdrop-blur-xl">
+      <div className="flex flex-wrap items-start justify-between gap-5">
         <div>
-          <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-accent">Intent {goalId}</p>
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-white/46">Intent {goalId}</p>
           <h2 className="mt-3 font-serif text-[clamp(1.7rem,3.2vw,3rem)] leading-tight tracking-[-0.04em] text-white">
             {goalText || "Loading intent..."}
           </h2>
           <p className="mt-4 max-w-2xl text-sm text-white/56">{currentCopy}</p>
         </div>
 
-        <div className="rounded-xl border border-white/[0.09] bg-white/[0.035] p-4">
+        <div className="min-w-36 text-right">
           <p className="font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white/42">Status</p>
-          <p className="mt-2 font-serif text-2xl text-white">{status}</p>
+          <p className="mt-2 font-mono text-sm uppercase tracking-[0.16em] text-white/64">{status}</p>
           <button
-            className="mt-5 rounded-lg border border-white/[0.1] px-3 py-2 font-mono text-xs uppercase tracking-[0.16em] text-white/58 transition-colors hover:border-accent/40 hover:text-white"
+            className="mt-5 font-mono text-xs uppercase tracking-[0.16em] text-white/46 transition-colors hover:text-white"
             type="button"
             onClick={() => onInspect({ title: "Pending goal", body: { goalId, status, goalText, receipts: steps } })}
           >
@@ -373,7 +372,7 @@ function PendingCompileCard({
 
       <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
         <span
-          className="block h-full rounded-full bg-accent transition-[width]"
+          className="block h-full rounded-full bg-white/70 transition-[width]"
           style={{ width: `${Math.min(92, Math.max(8, completedSteps.length * 20))}%` }}
         />
       </div>
@@ -382,7 +381,7 @@ function PendingCompileCard({
         {realSteps.length > 0 ? (
           realSteps.map((step) => (
             <button
-              className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-left transition-colors hover:border-accent/30"
+              className="flex items-center justify-between gap-4 border-t border-white/[0.07] px-1 py-3 text-left transition-colors hover:text-white"
               key={`${step.stepName}-${step.requestId}`}
               type="button"
               onClick={() => onInspect({ title: step.stepName, body: step })}
@@ -392,12 +391,12 @@ function PendingCompileCard({
             </button>
           ))
         ) : (
-          <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] px-4 py-5 text-sm text-white/45">
+          <div className="border-t border-white/[0.07] px-1 py-5 text-sm text-white/45">
             No on-chain receipts yet. The compile transaction is accepted; the first receipt appears after the rates agent responds.
           </div>
         )}
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -493,7 +492,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
         <h1>This receipt has expired.</h1>
         <p>It may have been removed or the link is no longer valid.</p>
         <a className="empty-cta" href="/">
-          ✶ Compose a new intent
+          Compose a new intent
         </a>
         <a className="empty-link" href="/">
           ← Back to recent receipts
@@ -528,10 +527,10 @@ export function IntentClient({ goalId }: { goalId: string }) {
     return (
       <main className="relative z-10 mx-auto w-full max-w-[88rem] px-5 pb-8 pt-2 lg:px-8">
         <section className="mx-auto mb-4 max-w-4xl text-center">
-          <div className="mx-auto mb-3 grid size-9 place-items-center rounded-full border border-accent/35 bg-accent/10 text-accent">
+          <div className="mx-auto mb-3 grid size-9 place-items-center rounded-full border border-white/[0.12] bg-white/[0.04] text-white/70">
             <Loader2 className="size-4 animate-spin" />
           </div>
-          <p className="font-mono text-[0.68rem] uppercase tracking-[0.3em] text-accent">On-chain intent compiler</p>
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.3em] text-white/46">On-chain intent compiler</p>
           <h1 className="mt-2 font-serif text-[clamp(2rem,4vw,3.8rem)] leading-[0.95] tracking-[-0.05em] text-white">
             {title}
           </h1>

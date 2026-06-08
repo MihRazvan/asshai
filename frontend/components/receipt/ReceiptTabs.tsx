@@ -45,6 +45,9 @@ type RawSection = {
   body: unknown;
 };
 
+const tabTriggerClass =
+  "rounded-none border-b border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/46 shadow-none transition-colors hover:text-white data-[state=active]:border-white/45 data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none";
+
 export function ReceiptTabs({
   goalId,
   intentHash,
@@ -77,16 +80,16 @@ export function ReceiptTabs({
   return (
     <Tabs className="mx-auto mt-4 w-full max-w-[72rem]" defaultValue="reasoning">
       <TabsList className="h-auto justify-start gap-6 rounded-none border-b border-white/[0.08] bg-transparent p-0">
-        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="reasoning">
+        <TabsTrigger className={tabTriggerClass} value="reasoning">
           Reasoning
         </TabsTrigger>
-        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="plan">
+        <TabsTrigger className={tabTriggerClass} value="plan">
           Plan
         </TabsTrigger>
-        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="execution">
+        <TabsTrigger className={tabTriggerClass} value="execution">
           Execution
         </TabsTrigger>
-        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="raw">
+        <TabsTrigger className={tabTriggerClass} value="raw">
           Raw
         </TabsTrigger>
       </TabsList>

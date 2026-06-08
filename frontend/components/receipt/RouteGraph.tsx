@@ -20,7 +20,7 @@ function nodeStateClass(state: GraphStage | undefined) {
   return cn(
     "relative z-10 grid min-h-28 w-full gap-1.5 rounded-xl border bg-white/[0.018] p-3.5 text-left transition-colors",
     resolved === "done" && "border-emerald-400/28",
-    resolved === "active" && "border-accent/55 shadow-[0_0_2rem_rgba(255,122,26,0.1)]",
+    resolved === "active" && "border-white/[0.28] shadow-[0_0_2rem_rgba(247,244,235,0.08)]",
     resolved === "pending" && "border-white/[0.075]",
     resolved === "error" && "border-red-400/50",
   );

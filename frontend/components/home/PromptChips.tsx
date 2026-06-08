@@ -12,15 +12,15 @@ export const promptPresets = [
 
 export function PromptChips({ onSelect }: { onSelect: (prompt: string, amount: string) => void }) {
   return (
-    <div className="flex flex-wrap gap-2" aria-label="Prompt presets">
+    <div className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Prompt presets">
       {promptPresets.map(({ Icon, ...preset }) => (
         <button
-          className="inline-flex h-8 items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.035] px-3 font-serif text-sm text-white/75 transition-colors hover:border-accent/35 hover:bg-accent/10 hover:text-white"
+          className="group inline-flex h-7 items-center gap-2 font-mono text-[0.72rem] uppercase tracking-[0.16em] text-white/44 transition-colors hover:text-white"
           type="button"
           key={preset.label}
           onClick={() => onSelect(preset.prompt, preset.amount)}
         >
-          <Icon className="size-3.5 text-white/55" />
+          <Icon className="size-3.5 text-white/34 transition-colors group-hover:text-white" />
           {preset.label}
         </button>
       ))}

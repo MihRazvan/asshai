@@ -3,24 +3,23 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, ShieldAlert, Sparkles } from "lucide-react";
+import { ArrowRight, ShieldAlert } from "lucide-react";
 import { decodeAbiParameters, Hex, parseEther, parseEventLogs, parseUnits } from "viem";
 import { useAccount, useReadContracts, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { PromptChips } from "@/components/home/PromptChips";
 import { ReceiptTicker } from "@/components/home/ReceiptTicker";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { goalRegistryAbi, goalRegistryAddress, receiptLogAbi, receiptLogAddress } from "@/lib/contracts";
 import { classifyGoalSupport, goalPolicy } from "@/lib/goal-support";
 import { somniaTestnet } from "@/lib/somnia";
 
 const arbitrumUsdc = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
-const featuredGoalIds = [64n, 63n, 62n];
 const examplePrompts = [
   "maximize my USDC yield, 7-day lockup",
   "safest stablecoin yield, no lockup, prefer Base",
   "find me 8%+ if possible, but don't use sketchy pools",
 ];
+const goalStatusLabels = ["Pending", "Compiling", "Ready", "Submitted", "Settled", "Failed", "Expired"] as const;
 
 type ReceiptEntry = {
   stepName: string;
@@ -100,6 +99,7 @@ export default function Home() {
   const [goal, setGoal] = useState("");
   const [sourceAmountInput, setSourceAmountInput] = useState("1");
   const [goalId, setGoalId] = useState<bigint>();
+  const [historyGoalIds, setHistoryGoalIds] = useState<bigint[]>([]);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const goalSupport = useMemo(() => classifyGoalSupport(goal), [goal]);
   const sourceAmount = useMemo(() => {
@@ -118,7 +118,7 @@ export default function Home() {
   const walletChainKnown = !isConnected || typeof chainId === "number";
   const mustSwitchToSomnia = Boolean(isConnected && typeof chainId === "number" && chainId !== somniaTestnet.id);
 
-  const recentContracts = featuredGoalIds.flatMap((id) => [
+  const recentContracts = historyGoalIds.flatMap((id) => [
     {
       address: goalRegistryAddress,
       abi: goalRegistryAbi,
@@ -137,12 +137,12 @@ export default function Home() {
 
   const { data: recentData } = useReadContracts({
     contracts: recentContracts,
-    query: { refetchInterval: 15_000 },
+    query: { enabled: recentContracts.length > 0, refetchInterval: 15_000 },
   });
 
   const recentReceipts = useMemo(
     () =>
-      featuredGoalIds
+      historyGoalIds
         .map((id, index) => {
           const goalResult = recentData?.[index * 2];
           const receiptsResult = recentData?.[index * 2 + 1];
@@ -153,28 +153,26 @@ export default function Home() {
 
           const compiledGoal = goalResult.result as GoalStruct;
           const receipts = receiptsResult.result as readonly ReceiptEntry[];
-          if (!compiledGoal || compiledGoal.status < 2) {
+          if (!compiledGoal?.naturalLanguage) {
             return undefined;
           }
 
           const decision = parseDecision(receipts);
           const venue = venueByPoolId(decision?.poolId);
-          if (!venue || !decision?.poolId) {
-            return undefined;
-          }
 
           return {
             goalId: id.toString(),
             goal: compiledGoal.naturalLanguage,
-            poolId: decision.poolId,
-            venueLabel: venue.label,
-            objective: decision.objectiveMatched,
-            apy: parseRatesApy(receipts, decision.poolId),
+            poolId: decision?.poolId,
+            venueLabel: venue?.label,
+            objective: decision?.objectiveMatched,
+            apy: parseRatesApy(receipts, decision?.poolId),
             age: relativeAge(compiledGoal.createdAt),
+            status: goalStatusLabels[compiledGoal.status] ?? "Unknown",
           };
         })
         .filter(Boolean),
-    [recentData],
+    [historyGoalIds, recentData],
   );
 
   useEffect(() => {
@@ -183,6 +181,20 @@ export default function Home() {
     const amount = searchParams.get("amount");
     if (prompt) setGoal(prompt);
     if (amount) setSourceAmountInput(amount);
+    try {
+      const stored = JSON.parse(window.localStorage.getItem("asshai-recent-intents") ?? "[]") as {
+        id?: string;
+      }[];
+      setHistoryGoalIds(
+        stored
+          .map((item) => item.id)
+          .filter((id): id is string => typeof id === "string" && /^\d+$/.test(id))
+          .map((id) => BigInt(id))
+          .slice(0, 6),
+      );
+    } catch {
+      setHistoryGoalIds([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -260,20 +272,15 @@ export default function Home() {
     : !walletChainKnown
       ? "Checking wallet network..."
       : mustSwitchToSomnia
-        ? "Switch to Somnia Testnet"
-        : "Compile Intent";
+        ? "Switch network"
+        : "Compile intent";
 
   return (
     <main className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[88rem] flex-col px-5 pb-6 pt-1 lg:px-8">
       <form className="mx-auto w-full max-w-[62rem]" onSubmit={submitGoal}>
-        <Card className="overflow-hidden border-accent/35 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.15),transparent_28rem),rgba(8,9,8,0.8)] p-4 shadow-[0_2rem_8rem_rgba(0,0,0,0.32)] backdrop-blur-xl">
-          <div className="flex items-center gap-3 px-2 pb-3 font-mono text-xs uppercase tracking-[0.24em] text-accent">
-            <Sparkles className="size-4 text-accent" />
-            Intent compiler
-          </div>
-
-          <div className="relative rounded-xl border border-white/[0.12] bg-white/[0.035] shadow-inner focus-within:border-accent/70">
-            <span className="absolute left-5 top-5 h-7 w-px rounded-full bg-accent" />
+        <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.06),transparent_28rem),rgba(8,9,8,0.82)] p-4 shadow-[0_2rem_8rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
+          <div className="relative rounded-xl border border-white/[0.12] bg-white/[0.035] shadow-inner focus-within:border-white/[0.28]">
+            <span className="absolute left-5 top-5 h-7 w-px rounded-full bg-white/55" />
             <textarea
               className="min-h-28 w-full resize-none bg-transparent px-8 py-5 pr-14 font-serif text-[clamp(1.55rem,2.4vw,2.25rem)] leading-snug text-white outline-none placeholder:text-white/28"
               id="goal"
@@ -282,7 +289,6 @@ export default function Home() {
               placeholder={examplePrompts[placeholderIndex]}
               required
             />
-            <Sparkles className="absolute right-5 top-6 size-4 text-accent/80" />
           </div>
 
           <div className="mt-3">
@@ -294,15 +300,15 @@ export default function Home() {
             />
           </div>
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="mt-4 grid items-end gap-3 border-t border-white/[0.07] pt-4 lg:grid-cols-[minmax(0,1fr)_auto]">
             <label
-              className="rounded-xl border border-white/[0.1] bg-white/[0.035] px-4 py-3"
+              className="grid gap-1"
               htmlFor="source-amount"
             >
               <span className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-white/42">Amount</span>
-              <span className="mt-1 flex items-center gap-3">
+              <span className="flex items-end gap-3">
                 <input
-                  className="min-w-0 flex-1 bg-transparent font-serif text-2xl text-white outline-none"
+                  className="min-w-0 flex-1 border-b border-white/[0.14] bg-transparent pb-1 font-serif text-3xl leading-none text-white outline-none transition-colors focus:border-white/[0.32]"
                   id="source-amount"
                   inputMode="decimal"
                   min="0"
@@ -318,7 +324,7 @@ export default function Home() {
             </label>
 
             <Button
-              className="h-full min-h-16 rounded-xl bg-gradient-to-b from-[#ffad55] via-accent to-accent-2 px-9 font-serif text-xl font-semibold text-[#120f0b] shadow-[0_1rem_3rem_rgba(255,122,26,0.22)] hover:from-[#ffb762] hover:to-[#f2652b]"
+              className="h-full min-h-16 rounded-xl border border-white/[0.12] bg-[#f7f4eb] px-9 font-serif text-xl font-semibold text-[#080807] shadow-[0_1rem_3rem_rgba(247,244,235,0.08)] hover:bg-white"
               type="submit"
               disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
             >
@@ -326,29 +332,28 @@ export default function Home() {
               <ArrowRight className="size-5" />
             </Button>
           </div>
-
-        </Card>
+        </section>
 
         {!sourceAmount ? <p className="tx-result">Enter a USDC amount greater than 0, up to 6 decimals.</p> : null}
 
         {showUnsupported ? (
           <motion.div
-            className="unsupported-card"
+            className="mt-4 flex items-start gap-3 border-t border-white/[0.09] px-1 pt-4 text-sm text-white/62"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.22 }}
           >
-            <span className="unsupported-icon">
+            <span className="mt-0.5 text-white/50">
               <ShieldAlert size={24} />
             </span>
             <div>
-              <strong>{goalSupport.reason}</strong>
-              <p>Try a one-time USDC yield allocation instead.</p>
+              <strong className="font-serif text-lg font-normal text-white">{goalSupport.reason}</strong>
+              <p className="mt-1">Try a one-time USDC yield allocation instead.</p>
             </div>
           </motion.div>
         ) : null}
 
-        {goalSupport.warnings.map((warning) => (
+        {goalSupport.warnings.filter((warning) => !warning.includes("No source asset was specified")).map((warning) => (
           <p className="tx-result" key={warning}>
             {warning}
           </p>

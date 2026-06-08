@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { ChevronDown, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 
 type RawSection = {
   title: string;
@@ -19,15 +18,15 @@ export function RawTab({ sections }: { sections: RawSection[] }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
-    <Card className="gap-2 border-white/[0.1] bg-white/[0.025] p-4">
+    <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.018]">
       {sections.map((section) => {
         const text = stringify(section.body);
         const isOpen = Boolean(open[section.title]);
 
         return (
-          <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-black/20" key={section.title}>
+          <section className="border-b border-white/[0.06] last:border-b-0" key={section.title}>
             <button
-              className="flex w-full items-center justify-between px-4 py-3 text-left font-mono text-sm text-white/78"
+              className="flex w-full items-center justify-between px-4 py-3 text-left font-mono text-sm text-white/72 transition-colors hover:bg-white/[0.025] hover:text-white"
               type="button"
               onClick={() => setOpen((current) => ({ ...current, [section.title]: !isOpen }))}
             >
@@ -39,7 +38,7 @@ export function RawTab({ sections }: { sections: RawSection[] }) {
             </button>
             {isOpen ? (
               <>
-                <pre className="max-h-[30rem] overflow-auto border-t border-white/[0.08] p-4 font-mono text-xs leading-relaxed text-orange-200/90">
+                <pre className="max-h-[30rem] overflow-auto border-t border-white/[0.06] bg-black/20 p-4 font-mono text-xs leading-relaxed text-orange-200/90">
                   {text}
                 </pre>
                 <Button
@@ -56,6 +55,6 @@ export function RawTab({ sections }: { sections: RawSection[] }) {
           </section>
         );
       })}
-    </Card>
+    </div>
   );
 }

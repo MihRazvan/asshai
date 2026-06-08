@@ -70,11 +70,11 @@ export function HeroBand({
   const statusCopy = execution.isDone ? "Executed" : "Ready";
 
   return (
-    <Card className="mx-auto w-full max-w-[72rem] overflow-hidden border-accent/30 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.12),transparent_30rem),rgba(7,8,8,0.82)] p-0 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <Card className="mx-auto w-full max-w-[72rem] overflow-hidden border-white/[0.1] bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.055),transparent_30rem),rgba(7,8,8,0.82)] p-0 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
       <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:p-6">
         <div>
           <div className="flex flex-wrap items-center gap-2 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white/42">
-            <span className="text-accent">On-chain intent compiler</span>
+            <span className="text-white/58">On-chain intent compiler</span>
             <span className="text-white/18">/</span>
             <span className={execution.isDone ? "text-emerald-300" : "text-white/54"}>{statusCopy}</span>
           </div>
@@ -163,7 +163,7 @@ export function HeroBand({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.07] px-5 py-2.5 font-mono text-[0.72rem] text-white/42 lg:px-6">
-        <strong className="text-accent">{decision?.objectiveMatched ?? "compiling"}</strong>
+        <strong className="text-white/64">{decision?.objectiveMatched ?? "compiling"}</strong>
         <span>Intent {goalId}</span>
         <button className="rounded-md border border-white/[0.09] px-2 py-1" type="button" onClick={() => onInspect({ title: "Intent hash", body: intentHash ?? "pending" })}>
           {shortHash(intentHash)}
