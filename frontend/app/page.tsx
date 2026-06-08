@@ -3,11 +3,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ShieldAlert } from "lucide-react";
+import { ArrowRight, ShieldAlert, Sparkles } from "lucide-react";
 import { decodeAbiParameters, Hex, parseEther, parseEventLogs, parseUnits } from "viem";
 import { useAccount, useReadContracts, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { PromptChips } from "@/components/home/PromptChips";
 import { ReceiptTicker } from "@/components/home/ReceiptTicker";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { goalRegistryAbi, goalRegistryAddress, receiptLogAbi, receiptLogAddress } from "@/lib/contracts";
 import { classifyGoalSupport, goalPolicy } from "@/lib/goal-support";
 import { somniaTestnet } from "@/lib/somnia";
@@ -253,56 +255,79 @@ export default function Home() {
 
   const showUnsupported = goal && !goalSupport.supported;
 
+  const buttonLabel = isPending
+    ? "Submitting to Somnia..."
+    : !walletChainKnown
+      ? "Checking wallet network..."
+      : mustSwitchToSomnia
+        ? "Switch to Somnia Testnet"
+        : "Compile Intent";
+
   return (
-    <main className="page-shell home-shell">
-      <section className="hero-copy">
-        <p className="eyebrow">On-chain intent compiler</p>
-        <h1 className="hero-title">
-          Describe the outcome.
-          <br />
-          Asshai compiles the best on-chain path.
-        </h1>
-      </section>
-
-      <form className="composer" onSubmit={submitGoal}>
-        <PromptChips
-          onSelect={(prompt, amount) => {
-            setGoal(prompt);
-            setSourceAmountInput(amount);
-          }}
-        />
-        <div className="composer-input-wrap">
-          <textarea
-            className="composer-textarea"
-            id="goal"
-            value={goal}
-            onChange={(event) => setGoal(event.target.value)}
-            placeholder={examplePrompts[placeholderIndex]}
-            required
-          />
-          <span className="compile-hint">⌘ ↵ to compile</span>
-        </div>
-
-        <div className="amount-row">
-          <label htmlFor="source-amount">
-            Amount
-            <span>Arbitrum USDC</span>
-          </label>
-          <div className="amount-input-wrap">
-            <input
-              id="source-amount"
-              inputMode="decimal"
-              min="0"
-              pattern="[0-9]+([.][0-9]{1,6})?"
-              title="Enter a USDC amount greater than 0, up to 6 decimals."
-              type="text"
-              value={sourceAmountInput}
-              onChange={(event) => setSourceAmountInput(event.target.value)}
-              placeholder="1"
-            />
-            <span>USDC</span>
+    <main className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[88rem] flex-col px-5 pb-6 pt-1 lg:px-8">
+      <form className="mx-auto w-full max-w-[62rem]" onSubmit={submitGoal}>
+        <Card className="overflow-hidden border-accent/35 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.15),transparent_28rem),rgba(8,9,8,0.8)] p-4 shadow-[0_2rem_8rem_rgba(0,0,0,0.32)] backdrop-blur-xl">
+          <div className="flex items-center gap-3 px-2 pb-3 font-mono text-xs uppercase tracking-[0.24em] text-accent">
+            <Sparkles className="size-4 text-accent" />
+            Intent compiler
           </div>
-        </div>
+
+          <div className="relative rounded-xl border border-white/[0.12] bg-white/[0.035] shadow-inner focus-within:border-accent/70">
+            <span className="absolute left-5 top-5 h-7 w-px rounded-full bg-accent" />
+            <textarea
+              className="min-h-28 w-full resize-none bg-transparent px-8 py-5 pr-14 font-serif text-[clamp(1.55rem,2.4vw,2.25rem)] leading-snug text-white outline-none placeholder:text-white/28"
+              id="goal"
+              value={goal}
+              onChange={(event) => setGoal(event.target.value)}
+              placeholder={examplePrompts[placeholderIndex]}
+              required
+            />
+            <Sparkles className="absolute right-5 top-6 size-4 text-accent/80" />
+          </div>
+
+          <div className="mt-3">
+            <PromptChips
+              onSelect={(prompt, amount) => {
+                setGoal(prompt);
+                setSourceAmountInput(amount);
+              }}
+            />
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <label
+              className="rounded-xl border border-white/[0.1] bg-white/[0.035] px-4 py-3"
+              htmlFor="source-amount"
+            >
+              <span className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-white/42">Amount</span>
+              <span className="mt-1 flex items-center gap-3">
+                <input
+                  className="min-w-0 flex-1 bg-transparent font-serif text-2xl text-white outline-none"
+                  id="source-amount"
+                  inputMode="decimal"
+                  min="0"
+                  pattern="[0-9]+([.][0-9]{1,6})?"
+                  title="Enter a USDC amount greater than 0, up to 6 decimals."
+                  type="text"
+                  value={sourceAmountInput}
+                  onChange={(event) => setSourceAmountInput(event.target.value)}
+                  placeholder="1"
+                />
+                <span className="font-mono text-sm uppercase tracking-[0.16em] text-white/58">USDC</span>
+              </span>
+            </label>
+
+            <Button
+              className="h-full min-h-16 rounded-xl bg-gradient-to-b from-[#ffad55] via-accent to-accent-2 px-9 font-serif text-xl font-semibold text-[#120f0b] shadow-[0_1rem_3rem_rgba(255,122,26,0.22)] hover:from-[#ffb762] hover:to-[#f2652b]"
+              type="submit"
+              disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
+            >
+              {buttonLabel}
+              <ArrowRight className="size-5" />
+            </Button>
+          </div>
+
+        </Card>
 
         {!sourceAmount ? <p className="tx-result">Enter a USDC amount greater than 0, up to 6 decimals.</p> : null}
 
@@ -328,28 +353,11 @@ export default function Home() {
             {warning}
           </p>
         ))}
-
-        <button
-          className="primary-cta"
-          type="submit"
-          disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
-        >
-          {isPending
-            ? "Submitting to Somnia..."
-            : !walletChainKnown
-              ? "Checking wallet network..."
-              : mustSwitchToSomnia
-                ? "Switch to Somnia Testnet"
-                : "Compile intent"}
-        </button>
-
-        <p className="somnia-note">
-          <span aria-hidden="true">✶</span>
-          Backed by <strong>Somnia</strong> consensus. Audit every decision.
-        </p>
       </form>
 
-      <ReceiptTicker receipts={recentReceipts} />
+      <div id="history">
+        <ReceiptTicker receipts={recentReceipts} />
+      </div>
 
       {hash ? <p className="tx-result">Transaction: {hash}</p> : null}
       {receipt.isLoading ? <p className="tx-result">Waiting for confirmation...</p> : null}

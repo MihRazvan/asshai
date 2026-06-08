@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 import { CommandPalette } from "@/components/CommandPalette";
 import { AsshaiHeader } from "@/components/asshai/AsshaiHeader";
 import { AuroraBackdrop } from "@/components/asshai/AuroraBackdrop";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Providers } from "./providers";
 
 const geistSans = Geist({
@@ -39,11 +40,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`}>
         <Providers>
-          <AuroraBackdrop />
-          <AsshaiHeader />
-          {children}
-          <CommandPalette />
-          <Toaster position="bottom-right" richColors={false} closeButton />
+          <TooltipProvider>
+            <AuroraBackdrop />
+            <AsshaiHeader />
+            {children}
+            <CommandPalette />
+            <Toaster position="bottom-right" richColors={false} closeButton />
+          </TooltipProvider>
         </Providers>
       </body>
     </html>

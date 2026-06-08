@@ -1,11 +1,11 @@
 "use client";
 
-import * as Tabs from "@radix-ui/react-tabs";
 import { ExecutionTab } from "@/components/receipt/ExecutionTab";
 import type { InspectorPayload } from "@/components/receipt/InspectorDrawer";
 import { PlanTab } from "@/components/receipt/PlanTab";
 import { RawTab } from "@/components/receipt/RawTab";
 import { ReasoningTab } from "@/components/receipt/ReasoningTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AgentStep } from "@/lib/use-receipt-stream";
 
 type Venue = {
@@ -75,14 +75,22 @@ export function ReceiptTabs({
   onInspect: (payload: InspectorPayload) => void;
 }) {
   return (
-    <Tabs.Root className="receipt-tabs" defaultValue="reasoning">
-      <Tabs.List className="receipt-tab-list" aria-label="Receipt detail views">
-        <Tabs.Trigger value="reasoning">Reasoning</Tabs.Trigger>
-        <Tabs.Trigger value="plan">Plan</Tabs.Trigger>
-        <Tabs.Trigger value="execution">Execution</Tabs.Trigger>
-        <Tabs.Trigger value="raw">Raw</Tabs.Trigger>
-      </Tabs.List>
-      <Tabs.Content value="reasoning" className="receipt-tab-panel">
+    <Tabs className="mx-auto mt-5 w-full max-w-[70rem]" defaultValue="reasoning">
+      <TabsList className="h-auto justify-start gap-7 rounded-none border-b border-white/[0.08] bg-transparent p-0">
+        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="reasoning">
+          Reasoning
+        </TabsTrigger>
+        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="plan">
+          Plan
+        </TabsTrigger>
+        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="execution">
+          Execution
+        </TabsTrigger>
+        <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="raw">
+          Raw
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="reasoning" className="mt-5">
         <ReasoningTab
           selectedVenue={selectedVenue}
           selectedRate={selectedRate}
@@ -91,8 +99,8 @@ export function ReceiptTabs({
           ratesById={ratesById}
           onInspect={onInspect}
         />
-      </Tabs.Content>
-      <Tabs.Content value="plan" className="receipt-tab-panel">
+      </TabsContent>
+      <TabsContent value="plan" className="mt-5">
         <PlanTab
           goalId={goalId}
           intentHash={intentHash}
@@ -104,8 +112,8 @@ export function ReceiptTabs({
           encodedIntent={encodedIntent}
           onInspect={onInspect}
         />
-      </Tabs.Content>
-      <Tabs.Content value="execution" className="receipt-tab-panel">
+      </TabsContent>
+      <TabsContent value="execution" className="mt-5">
         <ExecutionTab
           sourceAmount={sourceAmount}
           venueLabel={selectedVenue?.label}
@@ -115,10 +123,10 @@ export function ReceiptTabs({
           steps={steps}
           onInspect={onInspect}
         />
-      </Tabs.Content>
-      <Tabs.Content value="raw" className="receipt-tab-panel">
+      </TabsContent>
+      <TabsContent value="raw" className="mt-5">
         <RawTab sections={rawSections} />
-      </Tabs.Content>
-    </Tabs.Root>
+      </TabsContent>
+    </Tabs>
   );
 }

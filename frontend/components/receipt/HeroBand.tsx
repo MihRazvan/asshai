@@ -1,8 +1,11 @@
 "use client";
 
-import { Copy, ExternalLink, Share2 } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, Eye, Share2 } from "lucide-react";
 import { VenueLogo } from "@/components/asshai/VenueLogo";
 import { ExecuteButton } from "@/components/receipt/ExecuteButton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { InspectorPayload } from "@/components/receipt/InspectorDrawer";
 import type { useExecuteIntent } from "@/lib/use-execute-intent";
 
@@ -34,6 +37,13 @@ function formatApy(value?: string) {
   return value ? `${Number(value).toFixed(2)}% APY` : "APY pending";
 }
 
+function formatTvl(value?: string) {
+  const amount = Number(value ?? "0");
+  if (!amount) return "TVL pending";
+  if (amount > 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M TVL`;
+  return `$${amount.toLocaleString()} TVL`;
+}
+
 export function HeroBand({
   goalId,
   goalText,
@@ -59,55 +69,104 @@ export function HeroBand({
       : undefined;
 
   return (
-    <section className="receipt-hero-band">
-      <div className="hero-venue-block">
-        <VenueLogo poolId={selectedVenue?.poolId ?? "usdc"} label={selectedVenue?.label} size={42} />
+    <Card className="mx-auto grid w-full max-w-[58rem] gap-0 overflow-hidden border-accent/35 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.13),transparent_28rem),rgba(7,8,8,0.82)] p-0 shadow-[0_1.8rem_7rem_rgba(0,0,0,0.3)] backdrop-blur-xl lg:max-w-[70rem]">
+      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_21rem] lg:p-6">
         <div>
-          <p>{selectedVenue?.label ?? "Venue pending"}</p>
-          <span>{formatApy(selectedRate?.apy)}</span>
+          <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-white/45">Recommended venue</p>
+          <div className="mt-3 flex items-center gap-4">
+            <VenueLogo poolId={selectedVenue?.poolId ?? "usdc"} label={selectedVenue?.label} size={50} />
+            <div>
+              <h2 className="font-serif text-[clamp(2rem,4vw,3.2rem)] leading-[0.95] tracking-[-0.045em] text-white">
+                {selectedVenue?.label ?? "Venue pending"}
+              </h2>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Badge className="border-white/[0.12] bg-white/[0.04] px-3 py-1 font-mono text-white/70" variant="outline">
+                  APY <span className="ml-2 text-emerald-400">{formatApy(selectedRate?.apy).replace(" APY", "")}</span>
+                </Badge>
+                <Badge className="border-white/[0.12] bg-white/[0.04] px-3 py-1 font-mono text-white/70" variant="outline">
+                  {formatTvl(selectedRate?.tvlUsd)}
+                </Badge>
+                <Badge className="border-emerald-400/20 bg-emerald-400/10 px-3 py-1 font-mono text-emerald-300" variant="outline">
+                  Risk {selectedVenue?.riskTier ?? "pending"}
+                </Badge>
+                <Badge className="border-white/[0.12] bg-white/[0.04] px-3 py-1 font-mono text-white/70" variant="outline">
+                  Lockup {selectedRate?.lockup ?? "none"}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          <p className="mt-5 flex max-w-3xl items-start gap-3 font-serif text-[clamp(1.2rem,2vw,1.7rem)] leading-snug text-white/82">
+            <CheckCircle2 className="mt-1 size-5 shrink-0 text-emerald-400" />
+            {decision?.reasoning ?? "Somnia validators are compiling the consensus decision."}
+          </p>
         </div>
-        <em>{selectedVenue?.riskTier ?? "risk pending"}</em>
-        <em>{selectedRate?.lockup ?? "no lockup"}</em>
+
+        <aside className="flex flex-col justify-between gap-5 border-white/[0.09] lg:border-l lg:pl-6">
+          <div>
+            <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-white/45">Your original intent</p>
+            <div className="mt-3 rounded-xl border border-white/[0.1] bg-white/[0.035] p-3.5 font-serif text-base leading-snug text-white/78">
+              {goalText || "Loading prompt..."}
+            </div>
+          </div>
+
+          {settledCopy ? (
+            <a
+              className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 text-center font-mono text-sm text-emerald-300"
+              href={`https://basescan.org/address/${selectedVenue?.positionTokenAddress ?? ""}`}
+            >
+              {settledCopy}
+              <ExternalLink size={15} />
+            </a>
+          ) : (
+            <ExecuteButton execution={execution} disabled={!selectedVenue} />
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-2 text-sm text-white/48">
+            <Button
+              className="h-8 rounded-lg border-white/[0.1] bg-transparent px-2.5 text-white/55 hover:bg-white/[0.04] hover:text-white"
+              type="button"
+              variant="outline"
+              onClick={() => onInspect({ title: "Raw metadata", body: { goalId, intentHash, goalText } })}
+            >
+              <Eye size={14} />
+              View raw
+            </Button>
+            <Button
+              className="h-8 rounded-lg border-white/[0.1] bg-transparent px-2.5 text-white/55 hover:bg-white/[0.04] hover:text-white"
+              type="button"
+              variant="outline"
+              onClick={() => navigator.clipboard.writeText(window.location.href)}
+            >
+              <Copy size={14} />
+              Copy URL
+            </Button>
+            <Button
+              className="h-8 rounded-lg border-white/[0.1] bg-transparent px-2.5 text-white/55 hover:bg-white/[0.04] hover:text-white"
+              type="button"
+              variant="outline"
+              onClick={() =>
+                navigator.share?.({ title: "Asshai intent receipt", url: window.location.href }).catch(() => undefined)
+              }
+            >
+              <Share2 size={14} />
+              Share
+            </Button>
+          </div>
+        </aside>
       </div>
 
-      <blockquote>{decision?.reasoning ?? "Somnia validators are compiling the consensus decision."}</blockquote>
-
-      <div className="hero-meta-row">
-        <span title={goalText}>{goalText || "Loading prompt..."}</span>
-        <strong>{decision?.objectiveMatched ?? "compiling"}</strong>
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.08] px-5 py-2.5 font-mono text-[0.72rem] text-white/45 lg:px-6">
+        <span title={goalText} className="max-w-[28rem] truncate">
+          {goalText || "Loading prompt..."}
+        </span>
+        <strong className="text-accent">{decision?.objectiveMatched ?? "compiling"}</strong>
         <span>Intent {goalId}</span>
-        <button type="button" onClick={() => onInspect({ title: "Intent hash", body: intentHash ?? "pending" })}>
+        <button className="rounded-md border border-white/[0.09] px-2 py-1" type="button" onClick={() => onInspect({ title: "Intent hash", body: intentHash ?? "pending" })}>
           {shortHash(intentHash)}
         </button>
-        <span className="consensus-chip">3/3 Somnia consensus</span>
-        <button type="button" onClick={() => onInspect({ title: "Raw metadata", body: { goalId, intentHash, goalText } })}>
-          View raw
-        </button>
-        <button type="button" onClick={() => navigator.clipboard.writeText(window.location.href)}>
-          <Copy size={13} />
-          Copy URL
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            navigator.share?.({ title: "Asshai intent receipt", url: window.location.href }).catch(() => undefined)
-          }
-        >
-          <Share2 size={13} />
-          Share
-        </button>
+        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-emerald-300">3/3 Somnia consensus</span>
       </div>
-
-      <div className="hero-cta-slot">
-        {settledCopy ? (
-          <a className="settled-position-link" href={`https://basescan.org/address/${selectedVenue?.positionTokenAddress ?? ""}`}>
-            {settledCopy}
-            <ExternalLink size={15} />
-          </a>
-        ) : (
-          <ExecuteButton execution={execution} disabled={!selectedVenue} />
-        )}
-      </div>
-    </section>
+    </Card>
   );
 }

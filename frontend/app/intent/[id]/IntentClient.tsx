@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Check, Loader2 } from "lucide-react";
 import { decodeAbiParameters, formatUnits, Hex, isHex } from "viem";
 import { useReadContract } from "wagmi";
 import { HeroBand } from "@/components/receipt/HeroBand";
 import { InspectorDrawer, type InspectorPayload } from "@/components/receipt/InspectorDrawer";
 import { ReceiptTabs } from "@/components/receipt/ReceiptTabs";
+import { Card } from "@/components/ui/card";
 import {
   addressRegistryAddress,
   compilerEngineAddress,
@@ -325,6 +327,80 @@ function formatTvl(value?: string) {
   return `$${amount.toLocaleString()}`;
 }
 
+function PendingCompileCard({
+  goalId,
+  goalText,
+  status,
+  steps,
+  onInspect,
+}: {
+  goalId: string;
+  goalText: string;
+  status: string;
+  steps: AgentStep[];
+  onInspect: (payload: InspectorPayload) => void;
+}) {
+  const completedSteps = steps.filter((step) => step.status === "done");
+  const realSteps = steps.filter((step) => step.status === "done" && step.requestId !== 0n);
+  const currentCopy =
+    realSteps.length === 0
+      ? "Waiting for the first Somnia agent callback."
+      : `${realSteps.length} compiler receipt${realSteps.length === 1 ? "" : "s"} recorded.`;
+
+  return (
+    <Card className="mx-auto w-full max-w-[64rem] border-accent/25 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.12),transparent_24rem),rgba(7,8,8,0.82)] p-6 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_15rem]">
+        <div>
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-accent">Intent {goalId}</p>
+          <h2 className="mt-3 font-serif text-[clamp(1.7rem,3.2vw,3rem)] leading-tight tracking-[-0.04em] text-white">
+            {goalText || "Loading intent..."}
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm text-white/56">{currentCopy}</p>
+        </div>
+
+        <div className="rounded-xl border border-white/[0.09] bg-white/[0.035] p-4">
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white/42">Status</p>
+          <p className="mt-2 font-serif text-2xl text-white">{status}</p>
+          <button
+            className="mt-5 rounded-lg border border-white/[0.1] px-3 py-2 font-mono text-xs uppercase tracking-[0.16em] text-white/58 transition-colors hover:border-accent/40 hover:text-white"
+            type="button"
+            onClick={() => onInspect({ title: "Pending goal", body: { goalId, status, goalText, receipts: steps } })}
+          >
+            View raw
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+        <span
+          className="block h-full rounded-full bg-accent transition-[width]"
+          style={{ width: `${Math.min(92, Math.max(8, completedSteps.length * 20))}%` }}
+        />
+      </div>
+
+      <div className="mt-5 grid gap-2">
+        {realSteps.length > 0 ? (
+          realSteps.map((step) => (
+            <button
+              className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-left transition-colors hover:border-accent/30"
+              key={`${step.stepName}-${step.requestId}`}
+              type="button"
+              onClick={() => onInspect({ title: step.stepName, body: step })}
+            >
+              <span className="font-serif text-lg text-white/82">{stepTitle(step.stepName)}</span>
+              <span className="font-mono text-xs text-white/42">request {step.requestId.toString()}</span>
+            </button>
+          ))
+        ) : (
+          <div className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] px-4 py-5 text-sm text-white/45">
+            No on-chain receipts yet. The compile transaction is accepted; the first receipt appears after the rates agent responds.
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export function IntentClient({ goalId }: { goalId: string }) {
   const parsedGoalId = BigInt(goalId);
   const [inspector, setInspector] = useState<InspectorPayload>();
@@ -446,20 +522,45 @@ export function IntentClient({ goalId }: { goalId: string }) {
   ];
 
   const isCompiling = status === "Pending" || status === "Compiling" || !activeDecision;
-  const title = execution.isDone ? "Intent executed. Proof complete." : isCompiling ? "Compiling your intent on-chain." : "Your intent is compiled and ready.";
+  const title = execution.isDone ? "Intent executed" : isCompiling ? "Compiling intent" : "Intent ready";
+
+  if (isCompiling) {
+    return (
+      <main className="relative z-10 mx-auto w-full max-w-[88rem] px-5 pb-8 pt-2 lg:px-8">
+        <section className="mx-auto mb-4 max-w-4xl text-center">
+          <div className="mx-auto mb-3 grid size-9 place-items-center rounded-full border border-accent/35 bg-accent/10 text-accent">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.3em] text-accent">On-chain intent compiler</p>
+          <h1 className="mt-2 font-serif text-[clamp(2rem,4vw,3.8rem)] leading-[0.95] tracking-[-0.05em] text-white">
+            {title}
+          </h1>
+        </section>
+
+        <PendingCompileCard
+          goalId={goalId}
+          goalText={goal?.naturalLanguage ?? ""}
+          status={status}
+          steps={steps}
+          onInspect={setInspector}
+        />
+
+        <InspectorDrawer payload={inspector} onClose={() => setInspector(undefined)} />
+      </main>
+    );
+  }
 
   return (
-    <main className="page-shell intent-shell receipt-artifact">
-      <section className="intent-hero compact-hero">
-        <p className="eyebrow">On-chain intent compiler</p>
-        <h1 className="intent-title">{title}</h1>
-      </section>
-
-      {isCompiling ? (
-        <div className="compile-progress" aria-label="Compilation progress">
-          <span style={{ width: `${Math.max(12, steps.filter((step) => step.status === "done").length * 20)}%` }} />
+    <main className="relative z-10 mx-auto w-full max-w-[88rem] px-5 pb-8 pt-2 lg:px-8">
+      <section className="mx-auto mb-4 max-w-5xl text-center">
+        <div className="mx-auto mb-3 grid size-9 place-items-center rounded-full border border-emerald-400/35 bg-emerald-400/10 text-emerald-400">
+          <Check className="size-4" />
         </div>
-      ) : null}
+        <p className="font-mono text-[0.68rem] uppercase tracking-[0.3em] text-emerald-400/90">On-chain intent compiler</p>
+        <h1 className="mt-2 font-serif text-[clamp(2.1rem,4.4vw,4.1rem)] leading-[0.95] tracking-[-0.055em] text-white">
+          {title}
+        </h1>
+      </section>
 
       <HeroBand
         goalId={goalId}
