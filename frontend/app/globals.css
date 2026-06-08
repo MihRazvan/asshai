@@ -493,6 +493,38 @@ a {
   object-fit: cover;
 }
 
+.venue-logo-fallback {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.venue-logo-morpho-spark-usdc-base {
+  background:
+    radial-gradient(circle at 28% 22%, rgba(247, 244, 235, 0.22), transparent 30%),
+    linear-gradient(135deg, #1b5cff, #72e8ff);
+}
+
+.venue-logo-morpho-moonwell-flagship-usdc-base {
+  background:
+    radial-gradient(circle at 28% 22%, rgba(247, 244, 235, 0.22), transparent 30%),
+    linear-gradient(135deg, #2b6dff, #00d596);
+}
+
+.venue-logo-fluid-usdc-base {
+  background:
+    radial-gradient(circle at 28% 22%, rgba(247, 244, 235, 0.2), transparent 30%),
+    linear-gradient(135deg, #1ce1ff, #2452ff);
+}
+
+.venue-logo-steakhouse-prime-usdc-base {
+  background:
+    radial-gradient(circle at 28% 22%, rgba(247, 244, 235, 0.18), transparent 30%),
+    linear-gradient(135deg, #f05a28, #7b3cff);
+}
+
 .receipt-goal,
 .receipt-venue {
   overflow: hidden;
