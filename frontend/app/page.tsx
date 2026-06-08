@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { ShieldAlert } from "lucide-react";
 import { decodeAbiParameters, Hex, parseEther, parseEventLogs, parseUnits } from "viem";
 import { useAccount, useReadContracts, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { ReceiptCard } from "@/components/asshai/ReceiptCard";
+import { PromptChips } from "@/components/home/PromptChips";
+import { ReceiptTicker } from "@/components/home/ReceiptTicker";
 import { goalRegistryAbi, goalRegistryAddress, receiptLogAbi, receiptLogAddress } from "@/lib/contracts";
 import { classifyGoalSupport, goalPolicy } from "@/lib/goal-support";
 import { somniaTestnet } from "@/lib/somnia";
@@ -175,6 +176,14 @@ export default function Home() {
   );
 
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const prompt = searchParams.get("prompt");
+    const amount = searchParams.get("amount");
+    if (prompt) setGoal(prompt);
+    if (amount) setSourceAmountInput(amount);
+  }, []);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       setPlaceholderIndex((current) => (current + 1) % examplePrompts.length);
     }, 3_200);
@@ -194,9 +203,21 @@ export default function Home() {
     });
     if (logs[0]) {
       setGoalId(logs[0].args.goalId);
+      try {
+        const existing = JSON.parse(window.localStorage.getItem("asshai-recent-intents") ?? "[]") as {
+          id: string;
+          prompt?: string;
+        }[];
+        window.localStorage.setItem(
+          "asshai-recent-intents",
+          JSON.stringify([{ id: logs[0].args.goalId.toString(), prompt: goal }, ...existing].slice(0, 8)),
+        );
+      } catch {
+        // Recent intent storage is best-effort.
+      }
       router.push(`/intent/${logs[0].args.goalId.toString()}`);
     }
-  }, [receipt.data, router]);
+  }, [goal, receipt.data, router]);
 
   function submitGoal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -244,6 +265,12 @@ export default function Home() {
       </section>
 
       <form className="composer" onSubmit={submitGoal}>
+        <PromptChips
+          onSelect={(prompt, amount) => {
+            setGoal(prompt);
+            setSourceAmountInput(amount);
+          }}
+        />
         <div className="composer-input-wrap">
           <textarea
             className="composer-textarea"
@@ -322,14 +349,7 @@ export default function Home() {
         </p>
       </form>
 
-      <section className="receipt-feed">
-        <p className="section-kicker">Recently compiled receipts</p>
-        <div className="receipt-list">
-          {recentReceipts.map((receipt) =>
-            receipt ? <ReceiptCard key={receipt.goalId} {...receipt} /> : null,
-          )}
-        </div>
-      </section>
+      <ReceiptTicker receipts={recentReceipts} />
 
       {hash ? <p className="tx-result">Transaction: {hash}</p> : null}
       {receipt.isLoading ? <p className="tx-result">Waiting for confirmation...</p> : null}

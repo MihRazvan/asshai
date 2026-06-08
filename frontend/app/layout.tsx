@@ -3,6 +3,8 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Toaster } from "sonner";
+import { CommandPalette } from "@/components/CommandPalette";
 import { AsshaiHeader } from "@/components/asshai/AsshaiHeader";
 import { AuroraBackdrop } from "@/components/asshai/AuroraBackdrop";
 import { Providers } from "./providers";
@@ -40,6 +42,8 @@ export default function RootLayout({
           <AuroraBackdrop />
           <AsshaiHeader />
           {children}
+          <CommandPalette />
+          <Toaster position="bottom-right" richColors={false} closeButton />
         </Providers>
       </body>
     </html>

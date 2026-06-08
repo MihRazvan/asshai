@@ -1,25 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { ArrowRight, Check, Copy, ExternalLink, Lock, RotateCcw } from "lucide-react";
-import { decodeAbiParameters, encodeFunctionData, formatUnits, Hex, isHex } from "viem";
+import { decodeAbiParameters, formatUnits, Hex, isHex } from "viem";
+import { useReadContract } from "wagmi";
+import { HeroBand } from "@/components/receipt/HeroBand";
+import { InspectorDrawer, type InspectorPayload } from "@/components/receipt/InspectorDrawer";
+import { ReceiptTabs } from "@/components/receipt/ReceiptTabs";
 import {
-  useAccount,
-  useReadContract,
-  useSendTransaction,
-  useSwitchChain,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from "wagmi";
-import { ExecutionTrace } from "@/components/asshai/ExecutionTrace";
-import { RejectedAlternative } from "@/components/asshai/RejectedAlternative";
-import { ValidatorBadge } from "@/components/asshai/ValidatorBadge";
-import { VenueLogo } from "@/components/asshai/VenueLogo";
-import { erc20Abi, goalRegistryAbi, goalRegistryAddress, intentStoreAbi, intentStoreAddress } from "@/lib/contracts";
+  addressRegistryAddress,
+  compilerEngineAddress,
+  goalRegistryAbi,
+  goalRegistryAddress,
+  intentStoreAbi,
+  intentStoreAddress,
+  receiptLogAddress,
+  standardOrderEncoderAddress,
+} from "@/lib/contracts";
 import { goalPolicy } from "@/lib/goal-support";
 import { somniaTestnet } from "@/lib/somnia";
-import { AgentStep, useReceiptStream } from "@/lib/use-receipt-stream";
+import { useExecuteIntent } from "@/lib/use-execute-intent";
+import { type AgentStep, useReceiptStream } from "@/lib/use-receipt-stream";
 
 const goalStatuses = [
   "Pending",
@@ -327,17 +327,7 @@ function formatTvl(value?: string) {
 
 export function IntentClient({ goalId }: { goalId: string }) {
   const parsedGoalId = BigInt(goalId);
-  const { chainId, isConnected } = useAccount();
-  const { switchChain } = useSwitchChain();
-  const [lifiStatus, setLifiStatus] = useState<string>();
-  const [lifiStatusBody, setLifiStatusBody] = useState<LifiStatusBody>();
-  const [quoteStatus, setQuoteStatus] = useState<string>();
-  const [lifiQuote, setLifiQuote] = useState<LifiQuote>();
-  const [executionStatus, setExecutionStatus] = useState<string>();
-  const [showRaw, setShowRaw] = useState(false);
-  const { data: approveHash, error: approveError, isPending: isApprovePending, writeContract: approve } =
-    useWriteContract();
-  const { data: routeHash, error: routeError, isPending: isRoutePending, sendTransaction } = useSendTransaction();
+  const [inspector, setInspector] = useState<InspectorPayload>();
 
   const { data: goal, isLoading: isGoalLoading } = useReadContract({
     address: goalRegistryAddress,
@@ -366,13 +356,14 @@ export function IntentClient({ goalId }: { goalId: string }) {
 
   const { receipts, steps } = useReceiptStream(parsedGoalId, goal?.status);
   const order = useMemo(() => decodeOrder(encodedIntent as Hex | undefined), [encodedIntent]);
-  const routeReceipt = useWaitForTransactionReceipt({ hash: routeHash });
   const ratesStep = steps.find((step) => step.stepName === "rates_fetched");
   const decisionStep = steps.find((step) => step.stepName === "decision_built");
   const selectedStep = steps.find((step) => step.stepName === "candidates_selected");
   const planStep = steps.find((step) => step.stepName === "plan_built");
   const ratesText = decodeStringData(ratesStep?.payload);
   const ratesVenues = useMemo(() => parseRatesPayload(ratesText), [ratesText]);
+  const ratesById = useMemo(() => new Map(ratesVenues.map((venue) => [venue.poolId ?? "", venue])), [ratesVenues]);
+  const venuesById = useMemo(() => new Map(goalPolicy.supportedVenues.map((venue) => [venue.poolId, venue])), []);
   const decisionJson = asDecision(decisionStep?.payload);
   const planJson = planStep?.payload;
   const planDecisionJson = decisionFromPlan(planJson);
@@ -385,19 +376,10 @@ export function IntentClient({ goalId }: { goalId: string }) {
   const selectedPoolIdFromReceipts = decodeStringData(selectedStep?.payload) || activeDecision?.poolId;
   const selectedVenue = venueByPoolId(selectedPoolIdFromReceipts) ?? venueByOutputToken(outputToken);
   const selectedPoolId = selectedPoolIdFromReceipts ?? selectedVenue?.poolId;
-  const selectedVenueDecimals = outputDecimals(selectedVenue);
-  const outputChainId = output ? Number(output.chainId) : undefined;
-  const originChainId = order ? Number(order.originChainId) : undefined;
-  const mustSwitchToOrigin = Boolean(originChainId && chainId !== originChainId);
+  const selectedRate = selectedPoolId ? ratesById.get(selectedPoolId) : undefined;
+  const sourceAmount = formatUnits(inputAmount, 6);
   const orderExpired = order ? Date.now() >= order.expires * 1000 : false;
   const status = goal ? goalStatuses[goal.status] : "Loading";
-  const routeTx = lifiQuote?.transactionRequest;
-  const routeSpender = routeTx?.to;
-  const isFilled = lifiStatus?.startsWith("DONE") || lifiStatusBody?.status === "DONE";
-  const isExecuting = Boolean(routeHash && !isFilled);
-  const isFailed = status === "Failed";
-  const isCompiling = status === "Compiling";
-  const isReady = status === "IntentReady" && !isExecuting && !isFilled;
   const notFound =
     !isGoalLoading &&
     goal &&
@@ -405,122 +387,29 @@ export function IntentClient({ goalId }: { goalId: string }) {
     goal.createdAt === 0n &&
     !goal.naturalLanguage;
 
-  useEffect(() => {
-    if (!routeHash) return;
-
-    const timer = window.setInterval(() => {
-      void checkComposerStatus(routeHash);
-    }, 5_000);
-
-    void checkComposerStatus(routeHash);
-
-    return () => window.clearInterval(timer);
-  }, [routeHash, order]);
+  const execution = useExecuteIntent({
+    goalId,
+    order,
+    inputToken,
+    outputToken,
+    selectedVenue,
+    selectedPositionToken: outputToken,
+    orderExpired,
+  });
 
   useEffect(() => {
-    if (routeReceipt.data?.status === "success") {
-      setExecutionStatus("Source transaction confirmed. Waiting for destination execution...");
+    if (!goal?.naturalLanguage) return;
+    try {
+      const existing = JSON.parse(window.localStorage.getItem("asshai-recent-intents") ?? "[]") as {
+        id: string;
+        prompt?: string;
+      }[];
+      const next = [{ id: goalId, prompt: goal.naturalLanguage }, ...existing.filter((item) => item.id !== goalId)].slice(0, 8);
+      window.localStorage.setItem("asshai-recent-intents", JSON.stringify(next));
+    } catch {
+      // Recent intent storage is best-effort.
     }
-  }, [routeReceipt.data?.status]);
-
-  async function requestComposerQuote() {
-    if (!order || !output || !inputToken || !outputToken || !originChainId || !outputChainId) {
-      return;
-    }
-
-    setQuoteStatus("Requesting LI.FI Composer quote...");
-    setLifiQuote(undefined);
-    setExecutionStatus(undefined);
-    setLifiStatus(undefined);
-    setLifiStatusBody(undefined);
-
-    const isCompound = isCompoundBaseOutput(output);
-    const response = await fetch(isCompound ? "/api/lifi/contract-call-quote" : "/api/lifi/quote", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(
-        isCompound
-          ? {
-              fromChain: originChainId,
-              toChain: outputChainId,
-              fromToken: inputToken,
-              toToken: BASE_USDC,
-              toAmount: output.amount.toString(),
-              fromAddress: order.user,
-              toContractAddress: BASE_COMPOUND_CUSDCV3,
-              toContractCallData: encodeFunctionData({
-                abi: compoundCometAbi,
-                functionName: "supply",
-                args: [BASE_USDC, output.amount],
-              }),
-              toContractGasLimit: COMPOUND_CONTRACT_CALL_GAS_LIMIT,
-              toApprovalAddress: BASE_COMPOUND_CUSDCV3,
-              contractOutputsToken: BASE_COMPOUND_CUSDCV3,
-            }
-          : {
-              fromChain: originChainId,
-              toChain: outputChainId,
-              fromToken: inputToken,
-              toToken: outputToken,
-              fromAmount: inputAmount.toString(),
-              fromAddress: order.user,
-            },
-      ),
-    });
-    const body = await response.json();
-
-    if (!response.ok || !body?.transactionRequest?.to || !body?.transactionRequest?.data) {
-      setQuoteStatus(`Quote failed: ${body?.message ?? JSON.stringify(body)}`);
-      return;
-    }
-
-    setLifiQuote(body);
-    setQuoteStatus(
-      isCompound
-        ? `Quote ready via ${body.tool ?? "LI.FI"}: bridge ${formatUnits(output.amount, 6)} Base USDC and supply it into Compound V3 for cUSDCv3.`
-        : `Quote ready via ${body.tool ?? "LI.FI"}: ${formatUnits(
-            BigInt(body.estimate?.toAmount ?? "0"),
-            selectedVenueDecimals,
-          )} ${selectedVenue?.positionTokenSymbol ?? "output tokens"}.`,
-    );
-  }
-
-  async function checkComposerStatus(txHash = routeHash) {
-    if (!txHash || !originChainId || !outputChainId) {
-      return;
-    }
-
-    const response = await fetch(`/api/lifi/status?txHash=${txHash}&fromChain=${originChainId}&toChain=${outputChainId}`);
-    const body = (await response.json()) as LifiStatusBody;
-
-    setLifiStatusBody(body);
-    setLifiStatus(
-      body?.status
-        ? `${body.status}${body.substatus ? ` / ${body.substatus}` : ""}${
-            body.receiving?.amount
-              ? ` (${formatUnits(
-                  BigInt(body.receiving.amount),
-                  body.receiving.token?.decimals ?? selectedVenueDecimals,
-                )} ${body.receiving?.token?.symbol ?? ""})`
-              : ""
-          }`
-        : body?.message ?? JSON.stringify(body),
-    );
-  }
-
-  function executeComposerRoute() {
-    if (!routeTx?.to || !routeTx.data || !originChainId) {
-      return;
-    }
-
-    setExecutionStatus("Submitting LI.FI route transaction...");
-    sendTransaction({
-      to: routeTx.to,
-      data: routeTx.data,
-      value: bigintFromRequestValue(routeTx.value),
-      chainId: originChainId,
-    });
-  }
+  }, [goal?.naturalLanguage, goalId]);
 
   if (notFound || status === "Expired") {
     return (
@@ -537,351 +426,69 @@ export function IntentClient({ goalId }: { goalId: string }) {
     );
   }
 
-  const heroTitle = isFilled
-    ? "Intent executed. Proof complete."
-    : isReady
-      ? "Your intent is compiled and ready."
-      : "Compiling your intent on-chain.";
-  const finalAmount = lifiStatusBody?.receiving?.amount
-    ? `${formatUnits(
-        BigInt(lifiStatusBody.receiving.amount),
-        lifiStatusBody.receiving.token?.decimals ?? selectedVenueDecimals,
-      )} ${lifiStatusBody.receiving.token?.symbol ?? ""}`
-    : undefined;
+  const rawSections = [
+    { title: "Decision JSON", body: activeDecision ?? {} },
+    { title: "LI.FI quote", body: execution.quote ?? {} },
+    { title: "StandardOrder bytes", body: (encodedIntent as Hex | undefined) ?? "0x" },
+    { title: "Receipt log", body: receipts ?? steps },
+    { title: "Goal envelope", body: goal ?? {} },
+    {
+      title: "Contract addresses",
+      body: {
+        CompilerEngine: compilerEngineAddress,
+        ReceiptLog: receiptLogAddress,
+        IntentStore: intentStoreAddress,
+        AddressRegistry: addressRegistryAddress,
+        GoalRegistry: goalRegistryAddress,
+        StandardOrderEncoder: standardOrderEncoderAddress,
+      },
+    },
+  ];
+
+  const isCompiling = status === "Pending" || status === "Compiling" || !activeDecision;
+  const title = execution.isDone ? "Intent executed. Proof complete." : isCompiling ? "Compiling your intent on-chain." : "Your intent is compiled and ready.";
 
   return (
-    <main className="page-shell intent-shell">
-      <section className="intent-hero">
+    <main className="page-shell intent-shell receipt-artifact">
+      <section className="intent-hero compact-hero">
         <p className="eyebrow">On-chain intent compiler</p>
-        <h1 className="intent-title">{heroTitle}</h1>
-        {(isReady || isFilled) && <ValidatorBadge />}
-        <button className="raw-toggle" type="button" onClick={() => setShowRaw((current) => !current)}>
-          {showRaw ? "Hide raw" : "View raw"}
-        </button>
+        <h1 className="intent-title">{title}</h1>
       </section>
 
-      {isFilled ? (
-        <section className="filled-summary">
-          <Check size={28} />
-          <p>
-            <strong>{finalAmount ?? `Position token ${outputToken ?? ""}`}</strong> supplied to{" "}
-            <strong>{selectedVenue?.label ?? selectedPoolId ?? "selected venue"}</strong> via reasoning audited by
-            Somnia.
-          </p>
-        </section>
-      ) : null}
-
-      <section className="locked-goal">
-        <Lock size={17} />
-        <span>{goal?.naturalLanguage || "Loading goal..."}</span>
-        <em>{isFailed ? "compile failed" : isExecuting ? "executing..." : isCompiling ? "compiling..." : "compiled"}</em>
-      </section>
-
-      <section className={isFilled ? "filled-grid" : "reasoning-timeline"}>
-        <div className={isFilled ? "filled-card" : undefined}>
-          {isFilled ? <h2>Why we chose this</h2> : null}
-          {steps.slice(0, 4).map((step, index) => (
-            <motion.article
-              className={`timeline-step timeline-${step.status}`}
-              key={step.stepName}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.24 }}
-            >
-              <div className="timeline-marker">{step.status === "done" ? <Check size={16} /> : index + 1}</div>
-              <div className="timeline-content">
-                <h2>
-                  {index + 1}. {stepTitle(step.stepName)}
-                </h2>
-                {step.stepName === "rates_fetched" ? <RatesTable venues={ratesVenues} /> : null}
-                {step.stepName === "decision_built" ? (
-                  isFailed ? (
-                    <FailureCard />
-                  ) : activeDecision ? (
-                    <DecisionPanel decision={activeDecision} selectedPoolId={selectedPoolId} />
-                  ) : (
-                    <PendingBox label="Waiting for consensus decision..." />
-                  )
-                ) : null}
-                {step.stepName === "candidates_selected" ? (
-                  selectedPoolId ? (
-                    <p className="selected-copy">Solidity validated {selectedPoolId} against the v1 allowlist.</p>
-                  ) : (
-                    <PendingBox label="Waiting for pool validation..." />
-                  )
-                ) : null}
-                {step.stepName === "plan_built" ? (
-                  order && selectedVenue && output ? (
-                    <PlanSummary
-                      order={order}
-                      output={output}
-                      venueLabel={selectedVenue.label}
-                      outputToken={outputToken}
-                      positionTokenSymbol={selectedVenue.positionTokenSymbol}
-                    />
-                  ) : (
-                    <PendingBox label="Waiting for deterministic plan..." />
-                  )
-                ) : null}
-              </div>
-            </motion.article>
-          ))}
+      {isCompiling ? (
+        <div className="compile-progress" aria-label="Compilation progress">
+          <span style={{ width: `${Math.max(12, steps.filter((step) => step.status === "done").length * 20)}%` }} />
         </div>
-
-        {isFilled ? (
-          <div className="filled-card">
-            <h2>What happened</h2>
-            <ExecutionTrace approveHash={approveHash} routeHash={routeHash} lifiStatus={lifiStatus} isDone={isFilled} />
-            <div className="final-position-card">
-              <strong>Final position acquired</strong>
-              <dl>
-                <div>
-                  <dt>Protocol</dt>
-                  <dd>{selectedVenue?.label ?? selectedPoolId}</dd>
-                </div>
-                <div>
-                  <dt>Supplied</dt>
-                  <dd>{finalAmount ?? "Completed"}</dd>
-                </div>
-                <div>
-                  <dt>Chain</dt>
-                  <dd>Base</dd>
-                </div>
-                <div>
-                  <dt>Route tx</dt>
-                  <dd>{routeHash ? shortHash(routeHash) : "Recorded"}</dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        ) : null}
-      </section>
-
-      {isReady || isExecuting ? (
-        <section className="execute-panel">
-          <div className="execute-brand">LI.FI</div>
-          <div>
-            <strong>Execute via LI.FI Composer</strong>
-            <p>Approve and execute the compiled route from Arbitrum into the selected Base yield position.</p>
-          </div>
-          <div className="execute-amount">
-            {formatUnits(inputAmount, 6)} USDC
-            <ArrowRight size={18} />
-            {selectedVenue?.positionTokenSymbol ?? "position token"}
-          </div>
-          <div className="execute-actions">
-            {orderExpired ? <p>This compiled route is expired. Compile a fresh goal before execution.</p> : null}
-            {mustSwitchToOrigin && originChainId ? (
-              <button type="button" onClick={() => switchChain({ chainId: originChainId })}>
-                Switch to origin chain {originChainId}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              disabled={!isConnected || !order || !inputToken || !outputToken || mustSwitchToOrigin || orderExpired}
-              onClick={requestComposerQuote}
-            >
-              Request quote
-            </button>
-            <button
-              type="button"
-              disabled={
-                !isConnected ||
-                !order ||
-                !inputToken ||
-                !routeSpender ||
-                isApprovePending ||
-                mustSwitchToOrigin ||
-                orderExpired
-              }
-              onClick={() =>
-                inputToken &&
-                routeSpender &&
-                approve({
-                  address: inputToken,
-                  abi: erc20Abi,
-                  functionName: "approve",
-                  args: [routeSpender, inputAmount],
-                  chainId: originChainId,
-                })
-              }
-            >
-              {isApprovePending ? "Approving..." : "Approve"}
-            </button>
-            <button
-              type="button"
-              disabled={!isConnected || !routeTx?.to || !routeTx.data || isRoutePending || mustSwitchToOrigin || orderExpired}
-              onClick={executeComposerRoute}
-            >
-              {isRoutePending ? "Executing..." : "Execute via LI.FI"}
-              <ExternalLink size={15} />
-            </button>
-          </div>
-        </section>
       ) : null}
 
-      {isExecuting ? (
-        <section className="execution-section">
-          <h2>Executing cross-chain plan</h2>
-          <ExecutionTrace approveHash={approveHash} routeHash={routeHash} lifiStatus={lifiStatus} isDone={isFilled} />
-          {routeHash ? (
-            <button type="button" onClick={() => checkComposerStatus()}>
-              Refresh LI.FI status
-            </button>
-          ) : null}
-        </section>
-      ) : null}
+      <HeroBand
+        goalId={goalId}
+        goalText={goal?.naturalLanguage ?? ""}
+        intentHash={intentHash && intentHash !== ZERO_HASH ? intentHash : undefined}
+        selectedVenue={selectedVenue}
+        selectedRate={selectedRate}
+        decision={activeDecision}
+        execution={execution}
+        onInspect={setInspector}
+      />
 
-      <section className="receipt-meta">
-        <span>Intent ID {goalId}</span>
-        {intentHash && intentHash !== ZERO_HASH ? <span>Hash {shortHash(intentHash)}</span> : null}
-        <span>{receipts?.length ?? 0} on-chain receipts</span>
-        {routeHash ? <span>Route {shortHash(routeHash)}</span> : null}
-      </section>
+      <ReceiptTabs
+        goalId={goalId}
+        intentHash={intentHash && intentHash !== ZERO_HASH ? intentHash : undefined}
+        sourceAmount={sourceAmount}
+        selectedVenue={selectedVenue}
+        selectedRate={selectedRate}
+        decision={activeDecision}
+        venuesById={venuesById}
+        ratesById={ratesById}
+        encodedIntent={(encodedIntent as Hex | undefined) ?? "0x"}
+        execution={execution}
+        steps={steps}
+        rawSections={rawSections}
+        onInspect={setInspector}
+      />
 
-      {showRaw ? (
-        <section className="raw-panel">
-          <h2>Raw StandardOrder bytes</h2>
-          <pre>{(encodedIntent as Hex | undefined) ?? "0x"}</pre>
-          <button type="button" onClick={() => navigator.clipboard.writeText((encodedIntent as Hex | undefined) ?? "0x")}>
-            <Copy size={15} />
-            Copy raw bytes
-          </button>
-        </section>
-      ) : null}
-
-      {quoteStatus ? <p className="tx-result">Quote status: {quoteStatus}</p> : null}
-      {lifiQuote?.includedSteps?.length ? (
-        <p className="tx-result">LI.FI steps: {lifiQuote.includedSteps.map((step) => step.tool ?? step.type ?? "step").join(" -> ")}</p>
-      ) : null}
-      {executionStatus ? <p className="tx-result">Execution status: {executionStatus}</p> : null}
-      {lifiStatus ? <p className="tx-result">LI.FI status: {lifiStatus}</p> : null}
-      {approveError ? <p className="tx-result">Approval error: {approveError.message}</p> : null}
-      {routeError ? <p className="tx-result">Route error: {routeError.message}</p> : null}
+      <InspectorDrawer payload={inspector} onClose={() => setInspector(undefined)} />
     </main>
-  );
-}
-
-function PendingBox({ label }: { label: string }) {
-  return <div className="pending-box">{label}</div>;
-}
-
-function FailureCard() {
-  return (
-    <div className="failure-card">
-      <RotateCcw size={24} />
-      <div>
-        <strong>The compiler couldn't reach consensus on this goal. Try refining it.</strong>
-        <p>Validators returned conflicting or malformed outputs, so no safe plan could be derived.</p>
-      </div>
-    </div>
-  );
-}
-
-function RatesTable({ venues }: { venues: RatesVenue[] }) {
-  if (!venues.length) {
-    return <PendingBox label="Waiting for verified venue data..." />;
-  }
-
-  return (
-    <div className="venue-table">
-      <div className="venue-table-head">
-        <span>Pool ID</span>
-        <span>APY</span>
-        <span>TVL</span>
-        <span>Risk tier</span>
-        <span>Lockup</span>
-        <span>Source</span>
-      </div>
-      {venues.map((venue) => (
-        <div className="venue-table-row" key={venue.poolId}>
-          <span>
-            <VenueLogo poolId={venue.poolId ?? "usdc"} label={venue.project} size={24} />
-            {venue.poolId}
-          </span>
-          <span>{venue.apy ? `${Number(venue.apy).toFixed(2)}%` : "unknown"}</span>
-          <span>{formatTvl(venue.tvlUsd)}</span>
-          <span>
-            <em>{venue.riskTier ?? "unknown"}</em>
-          </span>
-          <span>{venue.lockup ?? "unknown"}</span>
-          <span>DefiLlama</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DecisionPanel({ decision, selectedPoolId }: { decision: DecisionJson; selectedPoolId?: string }) {
-  const rejectedAlternatives = (decision.rejectedAlternatives ?? []).filter(
-    (alternative) => alternative && typeof alternative === "object" && alternative.poolId,
-  );
-
-  return (
-    <div className="decision-panel">
-      <div className="decision-summary">
-        <span className={objectiveClass(decision.objectiveMatched)}>{decision.objectiveMatched ?? "objectiveMatched"}</span>
-        <strong>Selected {selectedPoolId ?? decision.poolId}</strong>
-      </div>
-      <pre>{prettyJson(decision)}</pre>
-      {rejectedAlternatives.length ? (
-        <div className="rejected-list">
-          {rejectedAlternatives.map((alternative, index) => (
-            <RejectedAlternative
-              key={`${alternative.poolId}-${index}`}
-              poolId={alternative.poolId ?? "unknown"}
-              reason={alternative.reason ?? "Rejected by consensus decision"}
-            />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function PlanSummary({
-  order,
-  output,
-  venueLabel,
-  outputToken,
-  positionTokenSymbol,
-}: {
-  order: StandardOrder;
-  output: StandardOrder["outputs"][number];
-  venueLabel: string;
-  outputToken?: Hex;
-  positionTokenSymbol?: string;
-}) {
-  const sourceAmount = order.inputs[0]?.[1] ?? output.amount;
-
-  return (
-    <div className="plan-summary">
-      <div>
-        <span>Destination chain</span>
-        <strong>Base</strong>
-      </div>
-      <div>
-        <span>Source amount</span>
-        <strong>{formatUnits(sourceAmount, 6)} USDC</strong>
-      </div>
-      <div>
-        <span>Action</span>
-        <strong>Supply yield</strong>
-      </div>
-      <div>
-        <span>Destination</span>
-        <strong>{venueLabel}</strong>
-      </div>
-      <div>
-        <span>Position token</span>
-        <strong>
-          {positionTokenSymbol ?? "Position"} {outputToken ? shortHash(outputToken) : "pending"}
-        </strong>
-      </div>
-      <div>
-        <span>Origin</span>
-        <strong>Chain {order.originChainId.toString()}</strong>
-      </div>
-    </div>
   );
 }
