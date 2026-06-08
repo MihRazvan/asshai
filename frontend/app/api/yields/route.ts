@@ -108,18 +108,14 @@ export async function GET() {
 
     return [
       `poolId=${pool.poolId}`,
-      `llamaPoolId=${pool.llamaPoolId}`,
       `chainName=${pool.chainName}`,
       `project=${pool.project}`,
-      `symbol=${pool.symbol}`,
       `apy=${live?.apy ?? "unknown"}`,
       `tvlUsd=${live?.tvlUsd ?? "unknown"}`,
       `lockup=${pool.lockup}`,
       `venueType=${pool.venueType}`,
       `riskTier=${pool.riskTier}`,
-      `riskNotes=${pool.riskNotes}`,
       `executionVerified=${pool.executionVerified}`,
-      `executionPath=${pool.executionPath}`,
     ].join(",");
   });
 
