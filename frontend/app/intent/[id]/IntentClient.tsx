@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { decodeAbiParameters, formatUnits, Hex, isHex } from "viem";
 import { useReadContract } from "wagmi";
 import { HeroBand } from "@/components/receipt/HeroBand";
@@ -522,7 +522,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
   ];
 
   const isCompiling = status === "Pending" || status === "Compiling" || !activeDecision;
-  const title = execution.isDone ? "Intent executed" : isCompiling ? "Compiling intent" : "Intent ready";
+  const title = isCompiling ? "Compiling intent" : "Intent ready";
 
   if (isCompiling) {
     return (
@@ -551,17 +551,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
   }
 
   return (
-    <main className="relative z-10 mx-auto w-full max-w-[88rem] px-5 pb-8 pt-2 lg:px-8">
-      <section className="mx-auto mb-4 max-w-5xl text-center">
-        <div className="mx-auto mb-3 grid size-9 place-items-center rounded-full border border-emerald-400/35 bg-emerald-400/10 text-emerald-400">
-          <Check className="size-4" />
-        </div>
-        <p className="font-mono text-[0.68rem] uppercase tracking-[0.3em] text-emerald-400/90">On-chain intent compiler</p>
-        <h1 className="mt-2 font-serif text-[clamp(2.1rem,4.4vw,4.1rem)] leading-[0.95] tracking-[-0.055em] text-white">
-          {title}
-        </h1>
-      </section>
-
+    <main className="relative z-10 mx-auto w-full max-w-[88rem] px-5 pb-6 pt-1 lg:px-8">
       <HeroBand
         goalId={goalId}
         goalText={goal?.naturalLanguage ?? ""}

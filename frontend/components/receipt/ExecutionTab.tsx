@@ -2,7 +2,6 @@
 
 import { ExternalLink } from "lucide-react";
 import { RouteGraph, type GraphStage } from "@/components/receipt/RouteGraph";
-import { Card } from "@/components/ui/card";
 import type { InspectorPayload } from "@/components/receipt/InspectorDrawer";
 import type { AgentStep } from "@/lib/use-receipt-stream";
 
@@ -54,15 +53,15 @@ export function ExecutionTab({
   onInspect: (payload: InspectorPayload) => void;
 }) {
   return (
-    <Card className="gap-5 border-white/[0.1] bg-white/[0.025] p-5">
+    <div className="space-y-4">
       {execution.isDone && execution.finalAmount ? (
-        <div className="rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 font-mono text-sm text-emerald-300">
+        <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-mono text-sm text-emerald-300">
           ✓ {execution.finalAmount} supplied to {venueLabel ?? "selected venue"}
         </div>
       ) : null}
       <div>
-        <h2 className="font-serif text-2xl text-white">Execution trace</h2>
-        <p className="mt-1 text-white/48">Source approval, LI.FI route, and destination supply progress in one path.</p>
+        <h2 className="font-serif text-2xl text-white">Execution</h2>
+        <p className="mt-1 text-sm text-white/42">Approval, LI.FI route, and destination supply progress.</p>
       </div>
       <RouteGraph
         sourceAmount={sourceAmount}
@@ -78,7 +77,7 @@ export function ExecutionTab({
           .filter((step) => step.status === "done")
           .map((step) => (
             <button
-              className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-left text-white/65 hover:border-accent/30"
+              className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/[0.07] px-1 py-3 text-left text-white/65 hover:text-white"
               type="button"
               key={step.id}
               onClick={() => onInspect({ title: step.stepName, eyebrow: "receipt log event", body: step })}
@@ -89,20 +88,20 @@ export function ExecutionTab({
             </button>
           ))}
         {execution.approvalHash ? (
-          <a className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-white/65 hover:border-accent/30" href={`https://arbiscan.io/tx/${execution.approvalHash}`} target="_blank" rel="noreferrer">
+          <a className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/[0.07] px-1 py-3 text-white/65 hover:text-white" href={`https://arbiscan.io/tx/${execution.approvalHash}`} target="_blank" rel="noreferrer">
             <span>Arbitrum approval</span>
             <em className="font-mono text-xs not-italic text-white/36">{shortHash(execution.approvalHash)}</em>
             <ExternalLink size={13} />
           </a>
         ) : null}
         {execution.routeHash ? (
-          <a className="grid grid-cols-[1fr_auto_auto] items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 text-white/65 hover:border-accent/30" href={`https://arbiscan.io/tx/${execution.routeHash}`} target="_blank" rel="noreferrer">
+          <a className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/[0.07] px-1 py-3 text-white/65 hover:text-white" href={`https://arbiscan.io/tx/${execution.routeHash}`} target="_blank" rel="noreferrer">
             <span>LI.FI route transaction</span>
             <em className="font-mono text-xs not-italic text-white/36">{shortHash(execution.routeHash)}</em>
             <ExternalLink size={13} />
           </a>
         ) : null}
       </section>
-    </Card>
+    </div>
   );
 }

@@ -75,8 +75,8 @@ export function ReceiptTabs({
   onInspect: (payload: InspectorPayload) => void;
 }) {
   return (
-    <Tabs className="mx-auto mt-5 w-full max-w-[70rem]" defaultValue="reasoning">
-      <TabsList className="h-auto justify-start gap-7 rounded-none border-b border-white/[0.08] bg-transparent p-0">
+    <Tabs className="mx-auto mt-4 w-full max-w-[72rem]" defaultValue="reasoning">
+      <TabsList className="h-auto justify-start gap-6 rounded-none border-b border-white/[0.08] bg-transparent p-0">
         <TabsTrigger className="rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/55 shadow-none data-[state=active]:border-accent data-[state=active]:bg-transparent data-[state=active]:text-accent data-[state=active]:shadow-none" value="reasoning">
           Reasoning
         </TabsTrigger>
@@ -90,7 +90,7 @@ export function ReceiptTabs({
           Raw
         </TabsTrigger>
       </TabsList>
-      <TabsContent value="reasoning" className="mt-5">
+      <TabsContent value="reasoning" className="mt-4">
         <ReasoningTab
           selectedVenue={selectedVenue}
           selectedRate={selectedRate}
@@ -100,7 +100,7 @@ export function ReceiptTabs({
           onInspect={onInspect}
         />
       </TabsContent>
-      <TabsContent value="plan" className="mt-5">
+      <TabsContent value="plan" className="mt-4">
         <PlanTab
           goalId={goalId}
           intentHash={intentHash}
@@ -113,7 +113,7 @@ export function ReceiptTabs({
           onInspect={onInspect}
         />
       </TabsContent>
-      <TabsContent value="execution" className="mt-5">
+      <TabsContent value="execution" className="mt-4">
         <ExecutionTab
           sourceAmount={sourceAmount}
           venueLabel={selectedVenue?.label}
@@ -124,7 +124,7 @@ export function ReceiptTabs({
           onInspect={onInspect}
         />
       </TabsContent>
-      <TabsContent value="raw" className="mt-5">
+      <TabsContent value="raw" className="mt-4">
         <RawTab sections={rawSections} />
       </TabsContent>
     </Tabs>

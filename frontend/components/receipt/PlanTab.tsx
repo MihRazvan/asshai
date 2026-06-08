@@ -3,7 +3,6 @@
 import { ExternalLink } from "lucide-react";
 import { RouteGraph } from "@/components/receipt/RouteGraph";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import type { InspectorPayload } from "@/components/receipt/InspectorDrawer";
 
 function shortHash(value?: string) {
@@ -33,10 +32,10 @@ export function PlanTab({
   onInspect: (payload: InspectorPayload) => void;
 }) {
   return (
-    <Card className="gap-5 border-white/[0.1] bg-white/[0.025] p-5">
+    <div className="space-y-4">
       <div>
-        <h2 className="font-serif text-2xl text-white">Compiled route plan</h2>
-        <p className="mt-1 text-white/48">A deterministic StandardOrder-shaped path built from registry-verified addresses.</p>
+        <h2 className="font-serif text-2xl text-white">Route plan</h2>
+        <p className="mt-1 text-sm text-white/42">Registry-verified path from Arbitrum USDC into the selected Base position.</p>
       </div>
       <RouteGraph
         sourceAmount={sourceAmount}
@@ -47,7 +46,7 @@ export function PlanTab({
         states={{ source: "done", lifi: "done", base: "done", venue: "done", position: finalAmount ? "done" : "active" }}
         onInspectNode={(node) => onInspect({ title: node.label, eyebrow: "plan node", body: node })}
       />
-      <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-4 font-mono text-xs text-white/42">
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.08] pt-3 font-mono text-xs text-white/42">
         <span>Intent ID {goalId}</span>
         <span>Hash {shortHash(intentHash)}</span>
         <Button
@@ -69,6 +68,6 @@ export function PlanTab({
         </a>
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

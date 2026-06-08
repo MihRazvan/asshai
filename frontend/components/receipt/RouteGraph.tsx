@@ -18,10 +18,10 @@ type GraphNode = {
 function nodeStateClass(state: GraphStage | undefined) {
   const resolved = state ?? "pending";
   return cn(
-    "relative z-10 grid min-h-32 w-full gap-2 rounded-xl border bg-white/[0.025] p-4 text-left transition-colors",
-    resolved === "done" && "border-emerald-400/35",
-    resolved === "active" && "border-accent/65 shadow-[0_0_2rem_rgba(255,122,26,0.12)]",
-    resolved === "pending" && "border-white/[0.1]",
+    "relative z-10 grid min-h-28 w-full gap-1.5 rounded-xl border bg-white/[0.018] p-3.5 text-left transition-colors",
+    resolved === "done" && "border-emerald-400/28",
+    resolved === "active" && "border-accent/55 shadow-[0_0_2rem_rgba(255,122,26,0.1)]",
+    resolved === "pending" && "border-white/[0.075]",
     resolved === "error" && "border-red-400/50",
   );
 }
@@ -102,7 +102,7 @@ export function RouteGraph({
               </span>
               <span className="font-mono text-xs text-white/28">{index + 1}</span>
             </span>
-            <strong className="mt-3 font-serif text-xl font-normal leading-tight text-white">{node.label}</strong>
+            <strong className="mt-2 font-serif text-lg font-normal leading-tight text-white">{node.label}</strong>
             <span className="font-mono text-xs text-white/42">{node.meta}</span>
             <em className="font-mono text-xs not-italic text-white/58">{node.detail}</em>
           </button>

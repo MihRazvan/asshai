@@ -2,10 +2,8 @@
 
 import { ExternalLink } from "lucide-react";
 import { VenueLogo } from "@/components/asshai/VenueLogo";
-import { RejectedChiclet } from "@/components/receipt/RejectedChiclet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import type { InspectorPayload } from "@/components/receipt/InspectorDrawer";
 
 type Venue = {
@@ -55,13 +53,34 @@ export function ReasoningTab({
   onInspect: (payload: InspectorPayload) => void;
 }) {
   const rejectedAlternatives = (decision?.rejectedAlternatives ?? []).filter((alternative) => alternative.poolId);
+  const rows = [
+    selectedVenue
+      ? {
+          poolId: selectedVenue.poolId,
+          venue: selectedVenue,
+          rate: selectedRate,
+          reason: decision?.reasoning ?? "Selected by consensus decision.",
+          selected: true,
+        }
+      : undefined,
+    ...rejectedAlternatives.map((alternative) => {
+      const poolId = alternative.poolId ?? "";
+      return {
+        poolId,
+        venue: venuesById.get(poolId),
+        rate: ratesById.get(poolId),
+        reason: alternative.reason ?? "Rejected by consensus decision",
+        selected: false,
+      };
+    }),
+  ].filter(Boolean);
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-end justify-between gap-4">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="font-serif text-2xl text-white">Why this venue was selected</h2>
-          <p className="mt-1 text-white/48">Asshai compared verified venues and kept the decision auditable.</p>
+          <h2 className="font-serif text-2xl text-white">Decision basis</h2>
+          <p className="mt-1 text-sm text-white/42">Verified venue data, consensus decision, deterministic allowlist validation.</p>
         </div>
         <Button
           className="h-9 rounded-lg border-white/[0.1] bg-transparent text-white/58 hover:bg-white/[0.04] hover:text-white"
@@ -74,69 +93,55 @@ export function ReasoningTab({
         </Button>
       </div>
 
-      <Card className="grid gap-5 border-emerald-400/35 bg-[radial-gradient(circle_at_0%_0%,rgba(63,185,127,0.1),transparent_22rem),rgba(247,244,235,0.025)] p-5 md:grid-cols-[1fr_1.3fr]">
-        <div className="flex items-start gap-4">
-          <VenueLogo poolId={selectedVenue?.poolId ?? "usdc"} label={selectedVenue?.label} size={58} />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-white/42">Chosen venue</p>
-              <Badge className="border-emerald-400/25 bg-emerald-400/10 text-emerald-300" variant="outline">
-                Best match
-              </Badge>
-            </div>
-            <h3 className="mt-2 font-serif text-[clamp(2rem,4vw,3.4rem)] leading-[0.95] tracking-[-0.04em] text-white">
-              {selectedVenue?.label ?? "Decision pending"}
-            </h3>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Badge className="border-white/[0.12] bg-white/[0.04] font-mono text-white/70" variant="outline">
-                APY {selectedRate?.apy ? `${Number(selectedRate.apy).toFixed(2)}%` : "pending"}
-              </Badge>
-              <Badge className="border-white/[0.12] bg-white/[0.04] font-mono text-white/70" variant="outline">
-                TVL {formatTvl(selectedRate?.tvlUsd)}
-              </Badge>
-              <Badge className="border-emerald-400/20 bg-emerald-400/10 font-mono text-emerald-300" variant="outline">
-                Risk {selectedVenue?.riskTier ?? selectedRate?.riskTier ?? "pending"}
-              </Badge>
-              <Badge className="border-white/[0.12] bg-white/[0.04] font-mono text-white/70" variant="outline">
-                Lockup {selectedRate?.lockup ?? "none"}
-              </Badge>
-            </div>
-          </div>
-        </div>
-
-        <blockquote className="self-center border-l border-accent/45 pl-5 font-serif text-[clamp(1.35rem,2.3vw,2rem)] leading-snug text-white/80">
-          {decision?.reasoning ?? "Waiting for the Somnia LLM consensus decision."}
-        </blockquote>
-      </Card>
-
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Rejected alternatives">
-        {rejectedAlternatives.map((alternative) => {
-          const poolId = alternative.poolId ?? "";
-          const venue = venuesById.get(poolId);
-          const rate = ratesById.get(poolId);
-
-          return (
-            <RejectedChiclet
-              key={`${poolId}-${alternative.reason}`}
-              venue={venue}
-              rate={rate}
-              reason={alternative.reason ?? "Rejected by consensus decision"}
-              onClick={() =>
-                onInspect({
-                  title: venue?.label ?? poolId,
-                  eyebrow: "rejected alternative",
-                  body: {
-                    reason: alternative.reason,
-                    venue,
-                    rates: rate,
-                    chosen: selectedVenue,
-                    decision,
-                  },
-                })
-              }
-            />
-          );
-        })}
+      <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.018]" aria-label="Venue comparison">
+        {rows.map((row) => (
+          <button
+            className={`grid w-full gap-4 border-b border-white/[0.06] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-white/[0.025] md:grid-cols-[minmax(14rem,1.1fr)_7rem_8rem_minmax(0,1.3fr)] md:items-center ${
+              row?.selected ? "bg-emerald-400/[0.035]" : ""
+            }`}
+            key={`${row?.poolId}-${row?.reason}`}
+            type="button"
+            onClick={() =>
+              onInspect({
+                title: row?.venue?.label ?? row?.poolId ?? "Venue",
+                eyebrow: row?.selected ? "selected venue" : "rejected alternative",
+                body: {
+                  reason: row?.reason,
+                  venue: row?.venue,
+                  rates: row?.rate,
+                  chosen: selectedVenue,
+                  decision,
+                },
+              })
+            }
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <VenueLogo poolId={row?.venue?.poolId ?? "usdc"} label={row?.venue?.label} size={34} />
+              <span className="min-w-0">
+                <span className={`block truncate font-serif text-xl leading-tight ${row?.selected ? "text-white" : "text-white/58"}`}>
+                  {row?.venue?.label ?? row?.poolId ?? "Unknown venue"}
+                </span>
+                <span className="mt-1 flex flex-wrap gap-2">
+                  {row?.selected ? (
+                    <Badge className="border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 font-mono text-[0.68rem] text-emerald-300" variant="outline">
+                      selected
+                    </Badge>
+                  ) : (
+                    <Badge className="border-white/[0.1] bg-white/[0.03] px-2 py-0.5 font-mono text-[0.68rem] text-white/42" variant="outline">
+                      rejected
+                    </Badge>
+                  )}
+                  <span className="font-mono text-[0.72rem] text-white/36">{row?.venue?.riskTier ?? row?.rate?.riskTier ?? "risk unknown"}</span>
+                </span>
+              </span>
+            </span>
+            <span className="font-mono text-sm text-white/68">
+              {row?.rate?.apy ? `${Number(row.rate.apy).toFixed(2)}% APY` : "APY unknown"}
+            </span>
+            <span className="font-mono text-sm text-white/42">TVL {formatTvl(row?.rate?.tvlUsd)}</span>
+            <span className={`text-sm leading-snug ${row?.selected ? "text-white/74" : "text-white/46"}`}>{row?.reason}</span>
+          </button>
+        ))}
       </section>
     </div>
   );

@@ -67,18 +67,24 @@ export function HeroBand({
     execution.isDone && execution.finalAmount && selectedVenue
       ? `${execution.finalAmount} supplied to ${selectedVenue.label} · view position →`
       : undefined;
+  const statusCopy = execution.isDone ? "Executed" : "Ready";
 
   return (
-    <Card className="mx-auto grid w-full max-w-[58rem] gap-0 overflow-hidden border-accent/35 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.13),transparent_28rem),rgba(7,8,8,0.82)] p-0 shadow-[0_1.8rem_7rem_rgba(0,0,0,0.3)] backdrop-blur-xl lg:max-w-[70rem]">
-      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_21rem] lg:p-6">
+    <Card className="mx-auto w-full max-w-[72rem] overflow-hidden border-accent/30 bg-[radial-gradient(circle_at_0%_0%,rgba(255,122,26,0.12),transparent_30rem),rgba(7,8,8,0.82)] p-0 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
+      <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:p-6">
         <div>
-          <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-white/45">Recommended venue</p>
-          <div className="mt-3 flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white/42">
+            <span className="text-accent">On-chain intent compiler</span>
+            <span className="text-white/18">/</span>
+            <span className={execution.isDone ? "text-emerald-300" : "text-white/54"}>{statusCopy}</span>
+          </div>
+
+          <div className="mt-4 flex items-center gap-4">
             <VenueLogo poolId={selectedVenue?.poolId ?? "usdc"} label={selectedVenue?.label} size={50} />
             <div>
-              <h2 className="font-serif text-[clamp(2rem,4vw,3.2rem)] leading-[0.95] tracking-[-0.045em] text-white">
+              <h1 className="font-serif text-[clamp(2.2rem,4.5vw,4.25rem)] leading-[0.92] tracking-[-0.055em] text-white">
                 {selectedVenue?.label ?? "Venue pending"}
-              </h2>
+              </h1>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Badge className="border-white/[0.12] bg-white/[0.04] px-3 py-1 font-mono text-white/70" variant="outline">
                   APY <span className="ml-2 text-emerald-400">{formatApy(selectedRate?.apy).replace(" APY", "")}</span>
@@ -102,12 +108,12 @@ export function HeroBand({
           </p>
         </div>
 
-        <aside className="flex flex-col justify-between gap-5 border-white/[0.09] lg:border-l lg:pl-6">
+        <aside className="flex flex-col justify-between gap-4 border-white/[0.09] lg:border-l lg:pl-6">
           <div>
-            <p className="font-mono text-[0.7rem] uppercase tracking-[0.2em] text-white/45">Your original intent</p>
-            <div className="mt-3 rounded-xl border border-white/[0.1] bg-white/[0.035] p-3.5 font-serif text-base leading-snug text-white/78">
+            <p className="font-mono text-[0.68rem] uppercase tracking-[0.2em] text-white/42">Original intent</p>
+            <p className="mt-3 max-w-sm font-serif text-lg leading-snug text-white/76">
               {goalText || "Loading prompt..."}
-            </div>
+            </p>
           </div>
 
           {settledCopy ? (
@@ -122,7 +128,7 @@ export function HeroBand({
             <ExecuteButton execution={execution} disabled={!selectedVenue} />
           )}
 
-          <div className="mt-3 flex flex-wrap gap-2 text-sm text-white/48">
+          <div className="flex flex-wrap gap-2 text-sm text-white/48">
             <Button
               className="h-8 rounded-lg border-white/[0.1] bg-transparent px-2.5 text-white/55 hover:bg-white/[0.04] hover:text-white"
               type="button"
@@ -156,10 +162,7 @@ export function HeroBand({
         </aside>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.08] px-5 py-2.5 font-mono text-[0.72rem] text-white/45 lg:px-6">
-        <span title={goalText} className="max-w-[28rem] truncate">
-          {goalText || "Loading prompt..."}
-        </span>
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.07] px-5 py-2.5 font-mono text-[0.72rem] text-white/42 lg:px-6">
         <strong className="text-accent">{decision?.objectiveMatched ?? "compiling"}</strong>
         <span>Intent {goalId}</span>
         <button className="rounded-md border border-white/[0.09] px-2 py-1" type="button" onClick={() => onInspect({ title: "Intent hash", body: intentHash ?? "pending" })}>
