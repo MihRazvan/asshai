@@ -813,6 +813,10 @@ function RatesTable({ venues }: { venues: RatesVenue[] }) {
 }
 
 function DecisionPanel({ decision, selectedPoolId }: { decision: DecisionJson; selectedPoolId?: string }) {
+  const rejectedAlternatives = (decision.rejectedAlternatives ?? []).filter(
+    (alternative) => alternative && typeof alternative === "object" && alternative.poolId,
+  );
+
   return (
     <div className="decision-panel">
       <div className="decision-summary">
@@ -820,9 +824,9 @@ function DecisionPanel({ decision, selectedPoolId }: { decision: DecisionJson; s
         <strong>Selected {selectedPoolId ?? decision.poolId}</strong>
       </div>
       <pre>{prettyJson(decision)}</pre>
-      {decision.rejectedAlternatives?.length ? (
+      {rejectedAlternatives.length ? (
         <div className="rejected-list">
-          {decision.rejectedAlternatives.map((alternative, index) => (
+          {rejectedAlternatives.map((alternative, index) => (
             <RejectedAlternative
               key={`${alternative.poolId}-${index}`}
               poolId={alternative.poolId ?? "unknown"}
