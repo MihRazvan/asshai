@@ -20,6 +20,7 @@ const ARBITRUM_CHAIN_ID = 42161;
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
 const BASE_COMPOUND_CUSDCV3 = "0xb125E6687d4313864e53df431d5425969c15Eb2F" as const;
 const COMPOUND_CONTRACT_CALL_GAS_LIMIT = "350000";
+const executionToastId = (goalId: string) => `execute-${goalId}`;
 
 const compoundCometAbi = [
   {
@@ -204,10 +205,13 @@ export function useExecuteIntent({
 
       if (body.status === "DONE") {
         setButtonState("done");
-        toast.success(`Intent executed${body.receiving?.amount ? ` · ${statusLabel(body, selectedDecimals)}` : ""}`);
+        toast.dismiss(executionToastId(goalId));
+        toast.success(`Intent executed${body.receiving?.amount ? ` · ${statusLabel(body, selectedDecimals)}` : ""}`, {
+          id: executionToastId(goalId),
+        });
       }
     },
-    [originChainId, outputChainId, routeHash, selectedDecimals],
+    [goalId, originChainId, outputChainId, routeHash, selectedDecimals],
   );
 
   useEffect(() => {
@@ -224,16 +228,17 @@ export function useExecuteIntent({
   }, [buttonState, checkStatus, routeHash]);
 
   useEffect(() => {
-    if (routeReceipt.data?.status === "success" && buttonState === "executing") {
-      toast.loading("Waiting for destination execution...", { id: `execute-${goalId}` });
+    if (routeReceipt.data?.status === "success" && buttonState === "executing" && statusBody?.status !== "DONE") {
+      toast.loading("Waiting for destination execution...", { id: executionToastId(goalId) });
     }
-  }, [buttonState, goalId, routeReceipt.data?.status]);
+  }, [buttonState, goalId, routeReceipt.data?.status, statusBody?.status]);
 
   useEffect(() => {
     const status = String(callsStatus.data?.status ?? "");
     if (status === "100" || status === "CONFIRMED" || status === "success") {
       setButtonState("done");
-      toast.success("Intent executed", { id: `execute-${goalId}` });
+      toast.dismiss(executionToastId(goalId));
+      toast.success("Intent executed", { id: executionToastId(goalId) });
     }
   }, [callsStatus.data?.status, goalId]);
 
@@ -335,7 +340,7 @@ export function useExecuteIntent({
         } as never);
         setBundleId((result as { id?: string }).id);
         setButtonState("executing");
-        toast.loading("Executing on-chain...", { id: `execute-${goalId}` });
+        toast.loading("Executing on-chain...", { id: executionToastId(goalId) });
         return;
       }
 
@@ -361,7 +366,7 @@ export function useExecuteIntent({
         chainId: ARBITRUM_CHAIN_ID,
       });
       setRouteHash(routed);
-      toast.loading("Waiting for destination execution...", { id: `execute-${goalId}` });
+      toast.loading("Waiting for destination execution...", { id: executionToastId(goalId) });
     } catch (error) {
       setButtonState("default");
       toast.error(humanizeError(error), { duration: Number.POSITIVE_INFINITY });
