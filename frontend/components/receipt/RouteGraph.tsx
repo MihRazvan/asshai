@@ -32,6 +32,8 @@ export function RouteGraph({
   venuePoolId,
   positionSymbol,
   finalAmount,
+  finalAssetValue,
+  finalApy,
   states,
   onInspectNode,
 }: {
@@ -40,6 +42,8 @@ export function RouteGraph({
   venuePoolId?: string;
   positionSymbol?: string;
   finalAmount?: string;
+  finalAssetValue?: string;
+  finalApy?: string;
   states?: Partial<Record<string, GraphStage>>;
   onInspectNode?: (node: GraphNode) => void;
 }) {
@@ -78,8 +82,10 @@ export function RouteGraph({
     {
       id: "position",
       label: positionSymbol ?? "Position Token",
-      meta: "final asset",
-      detail: finalAmount ?? "pending",
+      meta: "position",
+      detail: finalAssetValue
+        ? `${finalAssetValue}${finalApy ? ` · ${finalApy}` : ""}${finalAmount ? ` · ${finalAmount}` : ""}`
+        : finalAmount ?? "pending",
       logoPoolId: venuePoolId,
       state: states?.position ?? "pending",
     },

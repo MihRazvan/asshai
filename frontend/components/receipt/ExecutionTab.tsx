@@ -11,6 +11,8 @@ type Execution = {
   lifiStatus?: string;
   isDone: boolean;
   finalAmount?: string;
+  finalAssetValue?: string;
+  finalApy?: string;
   buttonState: string;
 };
 
@@ -41,6 +43,7 @@ export function ExecutionTab({
   venuePoolId,
   positionSymbol,
   execution,
+  finalApy,
   steps,
   onInspect,
 }: {
@@ -48,17 +51,15 @@ export function ExecutionTab({
   venueLabel?: string;
   venuePoolId?: string;
   positionSymbol?: string;
+  finalApy?: string;
   execution: Execution;
   steps: AgentStep[];
   onInspect: (payload: InspectorPayload) => void;
 }) {
+  const completedCompileSteps = steps.filter((step) => step.status === "done");
+
   return (
     <div className="space-y-4">
-      {execution.isDone && execution.finalAmount ? (
-        <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 font-mono text-sm text-emerald-300">
-          ✓ {execution.finalAmount} supplied to {venueLabel ?? "selected venue"}
-        </div>
-      ) : null}
       <div>
         <h2 className="font-serif text-2xl text-white">Execution</h2>
         <p className="mt-1 text-sm text-white/42">Approval, LI.FI route, and destination supply progress.</p>
@@ -69,13 +70,26 @@ export function ExecutionTab({
         venuePoolId={venuePoolId}
         positionSymbol={positionSymbol}
         finalAmount={execution.finalAmount}
+        finalAssetValue={execution.finalAssetValue}
+        finalApy={finalApy}
         states={graphStates(execution)}
         onInspectNode={(node) => onInspect({ title: node.label, eyebrow: "execution node", body: node })}
       />
       <section className="grid gap-2" aria-label="On-chain receipt tasks">
-        {steps
-          .filter((step) => step.status === "done")
-          .map((step) => (
+        {execution.isDone ? (
+          <button
+            className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/[0.07] px-1 py-3 text-left text-white/65 hover:text-white"
+            type="button"
+            onClick={() => onInspect({ title: "Somnia compile receipts", eyebrow: "receipt log", body: completedCompileSteps })}
+          >
+            <span>Compiled on Somnia</span>
+            <em className="font-mono text-xs not-italic text-white/36">
+              {completedCompileSteps.length} receipts · 3/3 consensus
+            </em>
+            <ExternalLink size={13} />
+          </button>
+        ) : (
+          completedCompileSteps.map((step) => (
             <button
               className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/[0.07] px-1 py-3 text-left text-white/65 hover:text-white"
               type="button"
@@ -86,7 +100,8 @@ export function ExecutionTab({
               <em className="font-mono text-xs not-italic text-white/36">request {step.requestId.toString()}</em>
               <ExternalLink size={13} />
             </button>
-          ))}
+          ))
+        )}
         {execution.approvalHash ? (
           <a className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-white/[0.07] px-1 py-3 text-white/65 hover:text-white" href={`https://arbiscan.io/tx/${execution.approvalHash}`} target="_blank" rel="noreferrer">
             <span>Arbitrum approval</span>

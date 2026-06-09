@@ -18,6 +18,8 @@ export function PlanTab({
   venuePoolId,
   positionSymbol,
   finalAmount,
+  finalAssetValue,
+  finalApy,
   encodedIntent,
   onInspect,
 }: {
@@ -28,6 +30,8 @@ export function PlanTab({
   venuePoolId?: string;
   positionSymbol?: string;
   finalAmount?: string;
+  finalAssetValue?: string;
+  finalApy?: string;
   encodedIntent?: string;
   onInspect: (payload: InspectorPayload) => void;
 }) {
@@ -43,6 +47,8 @@ export function PlanTab({
         venuePoolId={venuePoolId}
         positionSymbol={positionSymbol}
         finalAmount={finalAmount}
+        finalAssetValue={finalAssetValue}
+        finalApy={finalApy}
         states={{ source: "done", lifi: "done", base: "done", venue: "done", position: finalAmount ? "done" : "active" }}
         onInspectNode={(node) => onInspect({ title: node.label, eyebrow: "plan node", body: node })}
       />

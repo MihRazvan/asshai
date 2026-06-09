@@ -11,6 +11,7 @@ import {
   useSendCalls,
   useSendTransaction,
   useSwitchChain,
+  useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
@@ -24,6 +25,16 @@ const COMPOUND_CONTRACT_CALL_GAS_LIMIT = "350000";
 const QUOTE_TTL_MS = 60_000;
 const STATUS_POLL_TIMEOUT_MS = 15 * 60_000;
 const executionToastId = (goalId: string) => `execute-${goalId}`;
+
+const erc4626Abi = [
+  {
+    type: "function",
+    name: "convertToAssets",
+    inputs: [{ name: "shares", type: "uint256" }],
+    outputs: [{ name: "assets", type: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;
 
 const compoundCometAbi = [
   {
@@ -101,7 +112,9 @@ type ExecuteIntentArgs = {
   outputToken?: Hex;
   selectedVenue?: {
     poolId: string;
+    label: string;
     positionTokenSymbol: string;
+    positionTokenAddress: string;
     positionTokenDecimals: number;
   };
   selectedPositionToken?: Hex;
@@ -128,6 +141,26 @@ function statusLabel(body: LifiStatusBody | undefined, decimals: number) {
     : "";
 
   return `${body.status}${body.substatus ? ` / ${body.substatus}` : ""}${received}`;
+}
+
+function formatCompactTokenAmount(amount: bigint, decimals: number, symbol?: string) {
+  const value = Number(formatUnits(amount, decimals));
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumSignificantDigits: value >= 1 ? 5 : 4,
+    maximumFractionDigits: value >= 1 ? 4 : 8,
+  }).format(value);
+
+  return `${formatted}${symbol ? ` ${symbol}` : ""}`;
+}
+
+function formatUsdcValue(amount: bigint) {
+  const value = Number(formatUnits(amount, 6));
+  const formatted = new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: value < 1 ? 4 : 2,
+    maximumFractionDigits: value < 1 ? 4 : 2,
+  }).format(value);
+
+  return `$${formatted}`;
 }
 
 function shortAddress(address: string) {
@@ -199,6 +232,21 @@ export function useExecuteIntent({
   const outputChainId = output ? Number(output.chainId) : undefined;
   const selectedDecimals = selectedVenue?.positionTokenDecimals ?? 6;
   const isCompound = selectedPositionToken?.toLowerCase() === BASE_COMPOUND_CUSDCV3.toLowerCase();
+  const receivedShares = statusBody?.receiving?.amount ? BigInt(statusBody.receiving.amount) : undefined;
+  const shouldReadVaultAssets = Boolean(
+    receivedShares &&
+      selectedPositionToken &&
+      selectedVenue?.positionTokenDecimals &&
+      selectedVenue.positionTokenDecimals > 6,
+  );
+  const vaultAssets = useReadContract({
+    address: selectedPositionToken,
+    abi: erc4626Abi,
+    functionName: "convertToAssets",
+    args: receivedShares ? [receivedShares] : undefined,
+    chainId: outputChainId,
+    query: { enabled: shouldReadVaultAssets },
+  });
   const ownerMismatch = Boolean(
     isConnected && address && order?.user && address.toLowerCase() !== order.user.toLowerCase(),
   );
@@ -209,19 +257,45 @@ export function useExecuteIntent({
       : undefined;
 
   const finalAmount = useMemo(() => {
-    if (!statusBody?.receiving?.amount) {
+    if (!receivedShares) {
       return undefined;
     }
 
-    return `${formatUnits(
-      BigInt(statusBody.receiving.amount),
-      statusBody.receiving.token?.decimals ?? selectedDecimals,
-    )} ${statusBody.receiving.token?.symbol ?? selectedVenue?.positionTokenSymbol ?? ""}`.trim();
-  }, [selectedDecimals, selectedVenue?.positionTokenSymbol, statusBody]);
+    return formatCompactTokenAmount(
+      receivedShares,
+      statusBody?.receiving?.token?.decimals ?? selectedDecimals,
+      statusBody?.receiving?.token?.symbol ?? selectedVenue?.positionTokenSymbol,
+    );
+  }, [receivedShares, selectedDecimals, selectedVenue?.positionTokenSymbol, statusBody?.receiving?.token?.decimals, statusBody?.receiving?.token?.symbol]);
+
+  const finalAssetValue = useMemo(() => {
+    if (typeof vaultAssets.data === "bigint") {
+      return formatUsdcValue(vaultAssets.data);
+    }
+
+    if (receivedShares && selectedDecimals === 6) {
+      return formatUsdcValue(receivedShares);
+    }
+
+    if (receivedShares) {
+      return formatUsdcValue(inputAmount);
+    }
+
+    return undefined;
+  }, [inputAmount, receivedShares, selectedDecimals, vaultAssets.data]);
+
+  const successSummary = useMemo(() => {
+    if (!selectedVenue || !finalAssetValue) {
+      return undefined;
+    }
+
+    return `${finalAssetValue} deposited into ${selectedVenue.label}`;
+  }, [finalAssetValue, selectedVenue]);
 
   const lifiStatus = useMemo(() => statusLabel(statusBody, selectedDecimals), [selectedDecimals, statusBody]);
 
   const storageKey = `asshai-execution-${goalId}-${address?.toLowerCase() ?? "disconnected"}`;
+  const legacyStorageKey = `asshai-execution-${goalId}`;
 
   useEffect(() => {
     setApprovalHash(undefined);
@@ -235,7 +309,7 @@ export function useExecuteIntent({
     }
 
     try {
-      const saved = window.localStorage.getItem(storageKey);
+      const saved = window.localStorage.getItem(storageKey) ?? window.localStorage.getItem(legacyStorageKey);
       if (!saved) return;
       const parsed = JSON.parse(saved) as { approvalHash?: Hex; routeHash?: Hex; bundleId?: string };
       setApprovalHash(parsed.approvalHash);
@@ -247,7 +321,7 @@ export function useExecuteIntent({
     } catch {
       // Ignore corrupted local execution state.
     }
-  }, [address, storageKey]);
+  }, [address, legacyStorageKey, storageKey]);
 
   useEffect(() => {
     if (!address) {
@@ -256,10 +330,11 @@ export function useExecuteIntent({
 
     try {
       window.localStorage.setItem(storageKey, JSON.stringify({ approvalHash, routeHash, bundleId }));
+      window.localStorage.removeItem(legacyStorageKey);
     } catch {
       // localStorage is best-effort resume state.
     }
-  }, [address, approvalHash, routeHash, bundleId, storageKey]);
+  }, [address, approvalHash, routeHash, bundleId, legacyStorageKey, storageKey]);
 
   const checkStatus = useCallback(
     async (txHash = routeHash) => {
@@ -517,6 +592,7 @@ export function useExecuteIntent({
     ctaLabel,
     executeIntent,
     finalAmount,
+    finalAssetValue,
     isDone,
     lifiStatus,
     ownerMismatch,
@@ -524,5 +600,6 @@ export function useExecuteIntent({
     routeHash,
     routeReceipt,
     statusBody,
+    successSummary,
   };
 }

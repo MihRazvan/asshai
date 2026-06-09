@@ -64,8 +64,8 @@ export function HeroBand({
   onInspect: (payload: InspectorPayload) => void;
 }) {
   const settledCopy =
-    execution.isDone && execution.finalAmount && selectedVenue
-      ? `${execution.finalAmount} supplied to ${selectedVenue.label} · view position →`
+    execution.isDone && execution.successSummary && selectedVenue
+      ? `${execution.successSummary}${selectedRate?.apy ? ` · earning ${formatApy(selectedRate.apy)}` : ""}`
       : undefined;
   const statusCopy = execution.isDone ? "Executed" : "Ready";
 
@@ -80,11 +80,17 @@ export function HeroBand({
         >
           <span className="flex min-w-0 items-center gap-3">
             <CheckCircle2 className="size-5 shrink-0 text-emerald-300" />
-            <span className="truncate font-serif text-[clamp(1.1rem,2vw,1.55rem)] leading-tight text-emerald-100">
+            <span className="min-w-0 font-serif text-[clamp(1.05rem,1.8vw,1.45rem)] leading-tight text-emerald-100">
               {settledCopy}
+              {execution.finalAmount ? (
+                <span className="mt-1 block font-mono text-xs text-emerald-200/55">{execution.finalAmount}</span>
+              ) : null}
             </span>
           </span>
-          <ExternalLink className="size-4 shrink-0 text-emerald-200/70 transition-transform group-hover:translate-x-0.5" />
+          <span className="hidden shrink-0 items-center gap-2 font-mono text-xs uppercase tracking-[0.14em] text-emerald-200/70 sm:inline-flex">
+            View on Basescan
+            <ExternalLink className="size-4 transition-transform group-hover:translate-x-0.5" />
+          </span>
         </a>
       </section>
     );

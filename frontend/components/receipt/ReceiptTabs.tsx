@@ -37,6 +37,8 @@ type Execution = {
   lifiStatus?: string;
   isDone: boolean;
   finalAmount?: string;
+  finalAssetValue?: string;
+  finalApy?: string;
   buttonState: string;
 };
 
@@ -112,6 +114,8 @@ export function ReceiptTabs({
           venuePoolId={selectedVenue?.poolId}
           positionSymbol={selectedVenue?.positionTokenSymbol}
           finalAmount={execution.finalAmount}
+          finalAssetValue={execution.finalAssetValue}
+          finalApy={selectedRate?.apy ? `${Number(selectedRate.apy).toFixed(2)}% APY` : undefined}
           encodedIntent={encodedIntent}
           onInspect={onInspect}
         />
@@ -122,6 +126,7 @@ export function ReceiptTabs({
           venueLabel={selectedVenue?.label}
           venuePoolId={selectedVenue?.poolId}
           positionSymbol={selectedVenue?.positionTokenSymbol}
+          finalApy={selectedRate?.apy ? `${Number(selectedRate.apy).toFixed(2)}% APY` : undefined}
           execution={execution}
           steps={steps}
           onInspect={onInspect}
