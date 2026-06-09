@@ -2,7 +2,7 @@
 
 import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { useState } from "react";
 import { http, WagmiProvider } from "wagmi";
 import { arbitrum, base, mainnet, optimism } from "wagmi/chains";
@@ -24,11 +24,14 @@ const config = getDefaultConfig({
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
+  const rainbowKitChildren = children as ComponentProps<
+    typeof RainbowKitProvider
+  >["children"];
 
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
+        <RainbowKitProvider>{rainbowKitChildren}</RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
