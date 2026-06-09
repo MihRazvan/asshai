@@ -251,12 +251,19 @@ a {
 .wordmark {
   display: inline-flex;
   align-items: center;
+  gap: 0.9rem;
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 1.75rem;
   letter-spacing: 0.48em;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.wordmark img {
+  width: 1.55rem;
+  height: 1.55rem;
+  object-fit: contain;
 }
 
 .wallet-pill {
