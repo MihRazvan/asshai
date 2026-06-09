@@ -21,6 +21,11 @@ const examplePrompts = [
   "safest stablecoin yield, no lockup, prefer Base",
   "find me 8%+ if possible, but don't use sketchy pools",
 ];
+const headlinePrompts = [
+  "What should your USDC do next?",
+  "Where should your stables earn?",
+  "Describe the yield you want.",
+];
 const goalStatusLabels = ["Pending", "Compiling", "Ready", "Submitted", "Settled", "Failed", "Expired"] as const;
 
 type ReceiptEntry = {
@@ -104,6 +109,8 @@ export default function Home() {
   const [goalId, setGoalId] = useState<bigint>();
   const [historyGoalIds, setHistoryGoalIds] = useState<bigint[]>([]);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [headlineIndex, setHeadlineIndex] = useState(0);
+  const [typedHeadline, setTypedHeadline] = useState("");
   const goalSupport = useMemo(() => classifyGoalSupport(goal), [goal]);
   const sourceAmount = useMemo(() => {
     const trimmed = sourceAmountInput.trim();
@@ -209,6 +216,32 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const phrase = headlinePrompts[headlineIndex];
+
+    async function animateHeadline() {
+      setTypedHeadline("");
+
+      for (let index = 1; index <= phrase.length; index += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 42));
+        if (cancelled) return;
+        setTypedHeadline(phrase.slice(0, index));
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 15_000));
+      if (!cancelled) {
+        setHeadlineIndex((current) => (current + 1) % headlinePrompts.length);
+      }
+    }
+
+    void animateHeadline();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [headlineIndex]);
+
+  useEffect(() => {
     if (!receipt.data) {
       return;
     }
@@ -289,8 +322,10 @@ export default function Home() {
     <main className="page-shell home-shell">
       <section className="home-intro" aria-labelledby="home-title">
         <p className="eyebrow">On-chain intent compiler</p>
-        <h1 id="home-title">What should your USDC do next?</h1>
-        <p>Describe the outcome. Asshai compiles a verified route and keeps the reasoning on Somnia.</p>
+        <h1 className="typed-headline" id="home-title">
+          {typedHeadline}
+          <span aria-hidden="true" />
+        </h1>
       </section>
 
       <form className="composer" onSubmit={submitGoal}>

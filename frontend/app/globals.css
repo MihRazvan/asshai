@@ -320,6 +320,26 @@ a {
   line-height: 0.95;
 }
 
+.typed-headline {
+  min-height: 1.92em;
+}
+
+.typed-headline span {
+  display: inline-block;
+  width: 0.05em;
+  height: 0.82em;
+  margin-left: 0.09em;
+  background: var(--text-primary);
+  transform: translateY(0.08em);
+  animation: caret-blink 1s steps(1, end) infinite;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
 .home-intro p:not(.eyebrow),
 .utility-header p:not(.eyebrow) {
   max-width: 42rem;
@@ -691,7 +711,7 @@ a {
 
 .receipt-ticker {
   width: min(100%, 74rem);
-  margin: 2.1rem auto 0;
+  margin: 2.8rem auto 0;
 }
 
 .utility-page {
