@@ -530,8 +530,7 @@ export function IntentClient({ goalId }: { goalId: string }) {
           <div className="mx-auto mb-3 grid size-9 place-items-center rounded-full border border-white/[0.12] bg-white/[0.04] text-white/70">
             <Loader2 className="size-4 animate-spin" />
           </div>
-          <p className="font-mono text-[0.68rem] uppercase tracking-[0.3em] text-white/46">On-chain intent compiler</p>
-          <h1 className="mt-2 font-serif text-[clamp(2rem,4vw,3.8rem)] leading-[0.95] tracking-[-0.05em] text-white">
+          <h1 className="font-serif text-[clamp(2rem,4vw,3.8rem)] leading-[0.95] tracking-[-0.05em] text-white">
             {title}
           </h1>
         </section>

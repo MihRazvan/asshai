@@ -69,6 +69,27 @@ export function HeroBand({
       : undefined;
   const statusCopy = execution.isDone ? "Executed" : "Ready";
 
+  if (settledCopy && selectedVenue) {
+    return (
+      <section className="mx-auto w-full max-w-[72rem]">
+        <a
+          className="group flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-emerald-400/18 bg-emerald-400/[0.055] px-5 py-4 text-emerald-200 shadow-[0_1.4rem_4rem_rgba(0,0,0,0.2)] transition-colors hover:border-emerald-300/30 hover:bg-emerald-400/[0.075]"
+          href={`https://basescan.org/address/${selectedVenue.positionTokenAddress}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <CheckCircle2 className="size-5 shrink-0 text-emerald-300" />
+            <span className="truncate font-serif text-[clamp(1.1rem,2vw,1.55rem)] leading-tight text-emerald-100">
+              {settledCopy}
+            </span>
+          </span>
+          <ExternalLink className="size-4 shrink-0 text-emerald-200/70 transition-transform group-hover:translate-x-0.5" />
+        </a>
+      </section>
+    );
+  }
+
   return (
     <Card className="mx-auto w-full max-w-[72rem] overflow-hidden border-white/[0.1] bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.055),transparent_30rem),rgba(7,8,8,0.82)] p-0 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
       <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_19rem] lg:p-6">

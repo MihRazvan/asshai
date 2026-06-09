@@ -46,7 +46,7 @@ type RawSection = {
 };
 
 const tabTriggerClass =
-  "rounded-none border-b border-transparent bg-transparent px-0 pb-3 font-serif text-lg text-white/46 shadow-none transition-colors hover:text-white data-[state=active]:border-white/45 data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none";
+  "rounded-none border-0 bg-transparent px-0 pb-2 font-serif text-lg text-white/42 shadow-none transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none";
 
 export function ReceiptTabs({
   goalId,
@@ -79,7 +79,7 @@ export function ReceiptTabs({
 }) {
   return (
     <Tabs className="mx-auto mt-4 w-full max-w-[72rem]" defaultValue="reasoning">
-      <TabsList className="h-auto justify-start gap-6 rounded-none border-b border-white/[0.08] bg-transparent p-0">
+      <TabsList className="h-auto justify-start gap-7 rounded-none border-0 bg-transparent p-0">
         <TabsTrigger className={tabTriggerClass} value="reasoning">
           Reasoning
         </TabsTrigger>
