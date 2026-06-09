@@ -16,7 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 
 export type ModelSelectorProps = ComponentProps<typeof Dialog>;
 
@@ -30,8 +30,12 @@ export const ModelSelectorTrigger = (props: ModelSelectorTriggerProps) => (
   <DialogTrigger {...props} />
 );
 
-export type ModelSelectorContentProps = ComponentProps<typeof DialogContent> & {
-  title?: ReactNode;
+export type ModelSelectorContentProps = Omit<
+  ComponentProps<typeof DialogContent>,
+  "children"
+> & {
+  children?: ComponentProps<typeof Command>["children"];
+  title?: ComponentProps<typeof DialogTitle>["children"];
 };
 
 export const ModelSelectorContent = ({

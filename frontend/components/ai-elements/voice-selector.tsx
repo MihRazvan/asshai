@@ -104,8 +104,12 @@ export const VoiceSelectorTrigger = (props: VoiceSelectorTriggerProps) => (
   <DialogTrigger {...props} />
 );
 
-export type VoiceSelectorContentProps = ComponentProps<typeof DialogContent> & {
-  title?: ReactNode;
+export type VoiceSelectorContentProps = Omit<
+  ComponentProps<typeof DialogContent>,
+  "children"
+> & {
+  children?: ComponentProps<typeof Command>["children"];
+  title?: ComponentProps<typeof DialogTitle>["children"];
 };
 
 export const VoiceSelectorContent = ({
