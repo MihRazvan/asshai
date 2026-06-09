@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { ChevronsUpDownIcon } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import {
   createContext,
   useCallback,
@@ -283,7 +283,9 @@ export type MicSelectorListProps = Omit<
   ComponentProps<typeof CommandList>,
   "children"
 > & {
-  children: (devices: MediaDeviceInfo[]) => ReactNode;
+  children: (devices: MediaDeviceInfo[]) => ComponentProps<
+    typeof CommandList
+  >["children"];
 };
 
 export const MicSelectorList = ({
