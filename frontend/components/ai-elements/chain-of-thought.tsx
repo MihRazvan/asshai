@@ -68,9 +68,7 @@ export const ChainOfThought = memo(
   }
 );
 
-export type ChainOfThoughtHeaderProps = ComponentProps<
-  typeof CollapsibleTrigger
->;
+export type ChainOfThoughtHeaderProps = ComponentProps<"button">;
 
 export const ChainOfThoughtHeader = memo(
   ({ className, children, ...props }: ChainOfThoughtHeaderProps) => {
@@ -173,9 +171,7 @@ export const ChainOfThoughtSearchResult = memo(
   )
 );
 
-export type ChainOfThoughtContentProps = ComponentProps<
-  typeof CollapsibleContent
->;
+export type ChainOfThoughtContentProps = ComponentProps<"div">;
 
 export const ChainOfThoughtContent = memo(
   ({ className, children, ...props }: ChainOfThoughtContentProps) => {
