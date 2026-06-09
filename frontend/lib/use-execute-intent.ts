@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAccountModal, useConnectModal } from "@rainbow-me/rainbowkit";
 import { toast } from "sonner";
 import { encodeFunctionData, formatUnits, Hex } from "viem";
 import {
@@ -20,6 +21,8 @@ const ARBITRUM_CHAIN_ID = 42161;
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
 const BASE_COMPOUND_CUSDCV3 = "0xb125E6687d4313864e53df431d5425969c15Eb2F" as const;
 const COMPOUND_CONTRACT_CALL_GAS_LIMIT = "350000";
+const QUOTE_TTL_MS = 60_000;
+const STATUS_POLL_TIMEOUT_MS = 15 * 60_000;
 const executionToastId = (goalId: string) => `execute-${goalId}`;
 
 const compoundCometAbi = [
@@ -73,6 +76,14 @@ export type LifiStatusBody = {
 
 type ExecuteState = "default" | "quoting" | "switching" | "confirming" | "executing" | "done";
 
+type WalletCapabilities = Record<
+  string | number,
+  {
+    atomic?: { status?: string };
+    atomicBatch?: { supported?: boolean };
+  }
+>;
+
 type ExecuteIntentArgs = {
   goalId: string;
   order:
@@ -119,6 +130,37 @@ function statusLabel(body: LifiStatusBody | undefined, decimals: number) {
   return `${body.status}${body.substatus ? ` / ${body.substatus}` : ""}${received}`;
 }
 
+function shortAddress(address: string) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+function isCallsConfirmed(status: unknown) {
+  if (status === 100) {
+    return true;
+  }
+
+  const normalized = String(status ?? "").toLowerCase();
+  return normalized === "100" || normalized === "confirmed" || normalized === "success";
+}
+
+function lastRouteHashFromCallsStatus(data: unknown) {
+  const receipts = (data as { receipts?: readonly { transactionHash?: Hex; hash?: Hex }[] } | undefined)?.receipts ?? [];
+
+  for (let index = receipts.length - 1; index >= 0; index -= 1) {
+    const hash = receipts[index]?.transactionHash ?? receipts[index]?.hash;
+    if (hash) {
+      return hash;
+    }
+  }
+
+  return undefined;
+}
+
+function atomicStatusFromCapabilities(capabilities: unknown) {
+  const caps = (capabilities as WalletCapabilities | undefined)?.[ARBITRUM_CHAIN_ID];
+  return caps?.atomic?.status ?? (caps?.atomicBatch?.supported ? "supported" : "unsupported");
+}
+
 export function useExecuteIntent({
   goalId,
   order,
@@ -128,7 +170,9 @@ export function useExecuteIntent({
   selectedPositionToken,
   orderExpired,
 }: ExecuteIntentArgs) {
-  const { chain } = useAccount();
+  const { address, chain, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { openAccountModal } = useAccountModal();
   const { switchChainAsync } = useSwitchChain();
   const { data: capabilities } = useCapabilities({ chainId: ARBITRUM_CHAIN_ID });
   const { sendCallsAsync } = useSendCalls();
@@ -136,10 +180,12 @@ export function useExecuteIntent({
   const { sendTransactionAsync } = useSendTransaction();
   const [buttonState, setButtonState] = useState<ExecuteState>("default");
   const [quote, setQuote] = useState<LifiQuote>();
+  const [quoteFetchedAt, setQuoteFetchedAt] = useState(0);
   const [statusBody, setStatusBody] = useState<LifiStatusBody>();
   const [approvalHash, setApprovalHash] = useState<Hex>();
   const [routeHash, setRouteHash] = useState<Hex>();
   const [bundleId, setBundleId] = useState<string>();
+  const statusPollStartedAt = useRef<number | null>(null);
 
   const routeReceipt = useWaitForTransactionReceipt({ hash: routeHash });
   const callsStatus = useCallsStatus({
@@ -153,6 +199,14 @@ export function useExecuteIntent({
   const outputChainId = output ? Number(output.chainId) : undefined;
   const selectedDecimals = selectedVenue?.positionTokenDecimals ?? 6;
   const isCompound = selectedPositionToken?.toLowerCase() === BASE_COMPOUND_CUSDCV3.toLowerCase();
+  const ownerMismatch = Boolean(
+    isConnected && address && order?.user && address.toLowerCase() !== order.user.toLowerCase(),
+  );
+  const ctaLabel = !isConnected
+    ? "Connect wallet"
+    : ownerMismatch && order?.user
+      ? `Connect ${shortAddress(order.user)}`
+      : undefined;
 
   const finalAmount = useMemo(() => {
     if (!statusBody?.receiving?.amount) {
@@ -167,9 +221,19 @@ export function useExecuteIntent({
 
   const lifiStatus = useMemo(() => statusLabel(statusBody, selectedDecimals), [selectedDecimals, statusBody]);
 
-  const storageKey = `asshai-execution-${goalId}`;
+  const storageKey = `asshai-execution-${goalId}-${address?.toLowerCase() ?? "disconnected"}`;
 
   useEffect(() => {
+    setApprovalHash(undefined);
+    setRouteHash(undefined);
+    setBundleId(undefined);
+    setStatusBody(undefined);
+    setButtonState("default");
+
+    if (!address) {
+      return;
+    }
+
     try {
       const saved = window.localStorage.getItem(storageKey);
       if (!saved) return;
@@ -183,15 +247,19 @@ export function useExecuteIntent({
     } catch {
       // Ignore corrupted local execution state.
     }
-  }, [storageKey]);
+  }, [address, storageKey]);
 
   useEffect(() => {
+    if (!address) {
+      return;
+    }
+
     try {
       window.localStorage.setItem(storageKey, JSON.stringify({ approvalHash, routeHash, bundleId }));
     } catch {
       // localStorage is best-effort resume state.
     }
-  }, [approvalHash, routeHash, bundleId, storageKey]);
+  }, [address, approvalHash, routeHash, bundleId, storageKey]);
 
   const checkStatus = useCallback(
     async (txHash = routeHash) => {
@@ -216,16 +284,30 @@ export function useExecuteIntent({
 
   useEffect(() => {
     if (!routeHash || buttonState !== "executing") {
+      statusPollStartedAt.current = null;
       return;
     }
 
-    const timer = window.setInterval(() => {
+    statusPollStartedAt.current ??= Date.now();
+
+    const poll = () => {
+      if (statusPollStartedAt.current && Date.now() - statusPollStartedAt.current > STATUS_POLL_TIMEOUT_MS) {
+        setButtonState("default");
+        toast.warning("Destination execution is taking longer than expected. Check the route transaction.", {
+          id: executionToastId(goalId),
+          duration: Number.POSITIVE_INFINITY,
+        });
+        return;
+      }
+
       void checkStatus(routeHash);
-    }, 5_000);
-    void checkStatus(routeHash);
+    };
+
+    const timer = window.setInterval(poll, 5_000);
+    poll();
 
     return () => window.clearInterval(timer);
-  }, [buttonState, checkStatus, routeHash]);
+  }, [buttonState, checkStatus, goalId, routeHash]);
 
   useEffect(() => {
     if (routeReceipt.data?.status === "success" && buttonState === "executing" && statusBody?.status !== "DONE") {
@@ -234,13 +316,35 @@ export function useExecuteIntent({
   }, [buttonState, goalId, routeReceipt.data?.status, statusBody?.status]);
 
   useEffect(() => {
-    const status = String(callsStatus.data?.status ?? "");
-    if (status === "100" || status === "CONFIRMED" || status === "success") {
-      setButtonState("done");
-      toast.dismiss(executionToastId(goalId));
-      toast.success("Intent executed", { id: executionToastId(goalId) });
+    if (!isCallsConfirmed(callsStatus.data?.status)) {
+      return;
     }
-  }, [callsStatus.data?.status, goalId]);
+
+    const transactionHash = lastRouteHashFromCallsStatus(callsStatus.data);
+    if (transactionHash) {
+      if (transactionHash === routeHash) {
+        return;
+      }
+
+      setRouteHash(transactionHash);
+      setButtonState("executing");
+      toast.loading("Waiting for destination execution...", { id: executionToastId(goalId) });
+      void checkStatus(transactionHash);
+      return;
+    }
+
+    setButtonState("default");
+    toast.warning("Wallet confirmed the batch, but did not return a route transaction hash. Check wallet activity.", {
+      id: executionToastId(goalId),
+      duration: Number.POSITIVE_INFINITY,
+    });
+  }, [callsStatus.data, checkStatus, goalId, routeHash]);
+
+  useEffect(() => {
+    if (statusBody?.status === "DONE") {
+      toast.dismiss(executionToastId(goalId));
+    }
+  }, [goalId, statusBody?.status]);
 
   const requestQuote = useCallback(async () => {
     if (!order || !inputToken || !outputToken || !originChainId || !outputChainId || !output) {
@@ -286,21 +390,33 @@ export function useExecuteIntent({
     }
 
     setQuote(body);
+    setQuoteFetchedAt(Date.now());
     toast.success("Quote ready");
     return body;
   }, [inputAmount, inputToken, isCompound, order, originChainId, output, outputChainId, outputToken]);
 
   const executeIntent = useCallback(async () => {
     try {
+      if (!isConnected || !address) {
+        openConnectModal?.();
+        return;
+      }
       if (orderExpired) {
         throw new Error("This compiled route is expired. Compile a fresh goal before execution.");
       }
       if (!order || !inputToken || !originChainId) {
         throw new Error("The compiled order is not ready yet.");
       }
+      if (address.toLowerCase() !== order.user.toLowerCase()) {
+        openAccountModal?.();
+        throw new Error(`Connect ${shortAddress(order.user)} to execute this intent.`);
+      }
 
       setButtonState("quoting");
-      const currentQuote = quote?.transactionRequest?.to && quote.transactionRequest.data ? quote : await requestQuote();
+      const quoteIsFresh = Boolean(
+        quote?.transactionRequest?.to && quote.transactionRequest.data && Date.now() - quoteFetchedAt < QUOTE_TTL_MS,
+      );
+      const currentQuote = quoteIsFresh && quote ? quote : await requestQuote();
       const routeTx = currentQuote.transactionRequest;
       if (!routeTx?.to || !routeTx.data) {
         throw new Error("LI.FI returned an incomplete route.");
@@ -318,9 +434,7 @@ export function useExecuteIntent({
         functionName: "approve",
         args: [approvalAddress, inputAmount],
       });
-      const atomicStatus = (capabilities as Record<string, { atomic?: { status?: string } }> | undefined)?.[
-        ARBITRUM_CHAIN_ID
-      ]?.atomic?.status;
+      const atomicStatus = atomicStatusFromCapabilities(capabilities);
 
       if (atomicStatus === "supported" || atomicStatus === "ready") {
         setButtonState("confirming");
@@ -372,15 +486,20 @@ export function useExecuteIntent({
       toast.error(humanizeError(error), { duration: Number.POSITIVE_INFINITY });
     }
   }, [
+    address,
     capabilities,
     chain?.id,
     goalId,
     inputAmount,
     inputToken,
+    isConnected,
     order,
     orderExpired,
     originChainId,
+    openConnectModal,
+    openAccountModal,
     quote,
+    quoteFetchedAt,
     requestQuote,
     sendCallsAsync,
     sendTransactionAsync,
@@ -395,10 +514,12 @@ export function useExecuteIntent({
     bundleId,
     buttonState,
     callsStatus: callsStatus.data,
+    ctaLabel,
     executeIntent,
     finalAmount,
     isDone,
     lifiStatus,
+    ownerMismatch,
     quote,
     routeHash,
     routeReceipt,

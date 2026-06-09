@@ -56,7 +56,7 @@ function decodeReceiptPayload(stepName: string, data: Hex) {
 }
 
 export function useReceiptStream(goalId: bigint, goalStatus?: number) {
-  const shouldPollReceipts = goalStatus === 1 || goalStatus === 2;
+  const shouldPollReceipts = goalStatus === 1;
   const { data: receipts } = useReadContract({
     address: receiptLogAddress,
     abi: receiptLogAbi,

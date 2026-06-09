@@ -6,7 +6,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
 import { ArrowRight, ShieldAlert } from "lucide-react";
 import { parseEther, parseEventLogs, parseUnits } from "viem";
-import { useAccount, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useAccount, useBalance, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { VenueLogo } from "@/components/asshai/VenueLogo";
 import { PromptChips } from "@/components/home/PromptChips";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { classifyGoalSupport } from "@/lib/goal-support";
 import { somniaTestnet } from "@/lib/somnia";
 
 const arbitrumUsdc = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
+const compileFee = parseEther("0.6");
 const examplePrompts = [
   "maximize my USDC yield, 7-day lockup",
   "safest stablecoin yield, no lockup, prefer Base",
@@ -27,10 +28,11 @@ const headlinePrompts = [
 ];
 export default function Home() {
   const router = useRouter();
-  const { chainId, isConnected } = useAccount();
+  const { address, chainId, isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
-  const { switchChain } = useSwitchChain();
+  const { switchChainAsync } = useSwitchChain();
   const { data: hash, error, isPending, writeContract } = useWriteContract();
+  const compileBalance = useBalance({ address, chainId: somniaTestnet.id });
   const receipt = useWaitForTransactionReceipt({ hash });
   const [goal, setGoal] = useState("");
   const [sourceAmountInput, setSourceAmountInput] = useState("1");
@@ -54,6 +56,7 @@ export default function Home() {
   }, [sourceAmountInput]);
   const walletChainKnown = !isConnected || typeof chainId === "number";
   const mustSwitchToSomnia = Boolean(isConnected && typeof chainId === "number" && chainId !== somniaTestnet.id);
+  const hasInsufficientCompileFee = Boolean(isConnected && compileBalance.data && compileBalance.data.value < compileFee);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -125,7 +128,7 @@ export default function Home() {
     }
   }, [goal, receipt.data, router]);
 
-  function submitGoal(event: FormEvent<HTMLFormElement>) {
+  async function submitGoal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isConnected) {
       openConnectModal?.();
@@ -141,8 +144,11 @@ export default function Home() {
     }
 
     if (mustSwitchToSomnia) {
-      switchChain({ chainId: somniaTestnet.id });
-      return;
+      try {
+        await switchChainAsync({ chainId: somniaTestnet.id });
+      } catch {
+        return;
+      }
     }
 
     writeContract({
@@ -157,7 +163,7 @@ export default function Home() {
         goalSupport.compilerConstraints,
         BigInt(Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60),
       ],
-      value: parseEther("0.6"),
+      value: compileFee,
       chainId: somniaTestnet.id,
     });
   }
@@ -168,10 +174,12 @@ export default function Home() {
     ? "Submitting to Somnia..."
     : !isConnected
       ? "Connect wallet"
+    : hasInsufficientCompileFee
+      ? "Insufficient STT"
     : !walletChainKnown
       ? "Checking wallet network..."
       : mustSwitchToSomnia
-        ? "Switch network"
+        ? "Switch & compile"
         : "Compile intent";
 
   return (
@@ -231,7 +239,9 @@ export default function Home() {
               <Button
                 className="primary-cta compact"
                 type="submit"
-                disabled={!walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
+                disabled={
+                  !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount || hasInsufficientCompileFee
+                }
               >
                 <span className="truncate">{buttonLabel}</span>
                 <ArrowRight className="size-4" />
@@ -241,6 +251,9 @@ export default function Home() {
         </section>
 
         {!sourceAmount ? <p className="tx-result">Enter a USDC amount greater than 0, up to 6 decimals.</p> : null}
+        {hasInsufficientCompileFee ? (
+          <p className="tx-result">Add at least 0.6 STT on Somnia Testnet to compile an intent.</p>
+        ) : null}
 
         {showUnsupported ? (
           <motion.div

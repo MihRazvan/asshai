@@ -17,6 +17,7 @@ const buttonLabels: Record<ExecutionController["buttonState"], string> = {
 
 export function ExecuteButton({ execution, disabled }: { execution: ExecutionController; disabled?: boolean }) {
   const isBusy = ["quoting", "switching", "confirming", "executing"].includes(execution.buttonState);
+  const label = execution.buttonState === "default" && execution.ctaLabel ? execution.ctaLabel : buttonLabels[execution.buttonState];
 
   return (
     <Button
@@ -25,7 +26,7 @@ export function ExecuteButton({ execution, disabled }: { execution: ExecutionCon
       disabled={disabled || isBusy || execution.buttonState === "done"}
       onClick={execution.executeIntent}
     >
-      {buttonLabels[execution.buttonState]}
+      {label}
       {execution.buttonState === "done" ? <ExternalLink size={15} /> : null}
     </Button>
   );

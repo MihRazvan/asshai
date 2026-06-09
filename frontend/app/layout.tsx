@@ -1,7 +1,7 @@
 import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Toaster } from "sonner";
@@ -30,6 +30,11 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "Asshai",
   description: "On-chain intent compiler on Somnia",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

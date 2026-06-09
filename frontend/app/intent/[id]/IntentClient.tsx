@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, XCircle } from "lucide-react";
 import { decodeAbiParameters, formatUnits, Hex, isHex } from "viem";
 import { useReadContract } from "wagmi";
 import { HeroBand } from "@/components/receipt/HeroBand";
@@ -32,24 +32,8 @@ const goalStatuses = [
   "Expired",
 ] as const;
 
-const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
-const BASE_COMPOUND_CUSDCV3 = "0xb125E6687d4313864e53df431d5425969c15Eb2F" as const;
-const COMPOUND_CONTRACT_CALL_GAS_LIMIT = "350000";
 const ZERO_HASH = "0x0000000000000000000000000000000000000000000000000000000000000000";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-
-const compoundCometAbi = [
-  {
-    type: "function",
-    name: "supply",
-    inputs: [
-      { name: "asset", type: "address" },
-      { name: "amount", type: "uint256" },
-    ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
-] as const;
 
 const standardOrderAbi = [
   {
@@ -263,18 +247,6 @@ function decisionFromPlan(value: unknown) {
   return asDecision(tryParseJson(decision));
 }
 
-function isCompoundBaseOutput(output: StandardOrder["outputs"][number]) {
-  return finalOutputToken(output).toLowerCase() === BASE_COMPOUND_CUSDCV3.toLowerCase();
-}
-
-function bigintFromRequestValue(value: string | undefined) {
-  if (!value) {
-    return 0n;
-  }
-
-  return BigInt(value);
-}
-
 function shortHash(hash: string) {
   return `${hash.slice(0, 10)}...${hash.slice(-6)}`;
 }
@@ -317,13 +289,6 @@ function stepTitle(stepName: AgentStep["stepName"]) {
   };
 
   return titles[stepName];
-}
-
-function formatTvl(value?: string) {
-  const amount = Number(value ?? "0");
-  if (!amount) return "unknown";
-  if (amount > 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
-  return `$${amount.toLocaleString()}`;
 }
 
 function PendingCompileCard({
@@ -396,6 +361,69 @@ function PendingCompileCard({
           </div>
         )}
       </div>
+    </section>
+  );
+}
+
+function FailedCompileCard({
+  goalId,
+  goalText,
+  steps,
+  onInspect,
+}: {
+  goalId: string;
+  goalText: string;
+  steps: AgentStep[];
+  onInspect: (payload: InspectorPayload) => void;
+}) {
+  const realSteps = steps.filter((step) => step.status === "done" && step.requestId !== 0n);
+
+  return (
+    <section className="mx-auto w-full max-w-[64rem] overflow-hidden rounded-2xl border border-red-400/20 bg-[radial-gradient(circle_at_0%_0%,rgba(229,72,77,0.08),transparent_24rem),rgba(7,8,8,0.82)] p-6 shadow-[0_1.5rem_6rem_rgba(0,0,0,0.26)] backdrop-blur-xl">
+      <div className="flex flex-wrap items-start justify-between gap-5">
+        <div>
+          <p className="font-mono text-[0.68rem] uppercase tracking-[0.22em] text-red-200/60">Intent {goalId}</p>
+          <h2 className="mt-3 font-serif text-[clamp(1.7rem,3.2vw,3rem)] leading-tight tracking-[-0.04em] text-white">
+            Compile failed
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm text-white/58">
+            The compiler rejected this goal or could not derive a safe supported route. No funds moved.
+          </p>
+          {goalText ? <p className="mt-4 max-w-2xl font-serif text-xl leading-snug text-white/78">{goalText}</p> : null}
+        </div>
+
+        <button
+          className="font-mono text-xs uppercase tracking-[0.16em] text-white/46 transition-colors hover:text-white"
+          type="button"
+          onClick={() => onInspect({ title: "Failed goal", body: { goalId, status: "Failed", goalText, receipts: steps } })}
+        >
+          View raw
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-2">
+        {realSteps.length > 0 ? (
+          realSteps.map((step) => (
+            <button
+              className="flex items-center justify-between gap-4 border-t border-white/[0.07] px-1 py-3 text-left transition-colors hover:text-white"
+              key={`${step.stepName}-${step.requestId}`}
+              type="button"
+              onClick={() => onInspect({ title: step.stepName, body: step })}
+            >
+              <span className="font-serif text-lg text-white/82">{stepTitle(step.stepName)}</span>
+              <span className="font-mono text-xs text-white/42">request {step.requestId.toString()}</span>
+            </button>
+          ))
+        ) : (
+          <div className="border-t border-white/[0.07] px-1 py-5 text-sm text-white/45">
+            No compiler receipts were recorded for this failed goal.
+          </div>
+        )}
+      </div>
+
+      <a className="mt-6 inline-flex items-center justify-center rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 font-mono text-sm text-white/72 transition-colors hover:bg-white/[0.07] hover:text-white" href="/">
+        Try a new goal
+      </a>
     </section>
   );
 }
@@ -497,6 +525,30 @@ export function IntentClient({ goalId }: { goalId: string }) {
         <a className="empty-link" href="/">
           ← Back to recent receipts
         </a>
+      </main>
+    );
+  }
+
+  if (status === "Failed") {
+    return (
+      <main className="relative z-10 mx-auto w-full max-w-[88rem] px-5 pb-8 pt-2 lg:px-8">
+        <section className="mx-auto mb-4 max-w-4xl text-center">
+          <div className="mx-auto mb-3 grid size-9 place-items-center rounded-full border border-red-300/20 bg-red-400/[0.06] text-red-200/80">
+            <XCircle className="size-4" />
+          </div>
+          <h1 className="font-serif text-[clamp(2rem,4vw,3.8rem)] leading-[0.95] tracking-[-0.05em] text-white">
+            Compile failed
+          </h1>
+        </section>
+
+        <FailedCompileCard
+          goalId={goalId}
+          goalText={goal?.naturalLanguage ?? ""}
+          steps={steps}
+          onInspect={setInspector}
+        />
+
+        <InspectorDrawer payload={inspector} onClose={() => setInspector(undefined)} />
       </main>
     );
   }
