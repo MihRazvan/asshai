@@ -23,7 +23,7 @@ export function ReceiptTicker({ receipts }: { receipts: (TickerReceipt | undefin
     <section className="mx-auto mt-5 w-full max-w-[62rem]">
       <div className="mb-3 flex items-center justify-between">
         <p className="font-mono text-[0.72rem] uppercase tracking-[0.28em] text-white/42">History</p>
-        <Link className="inline-flex items-center gap-2 text-sm text-white/48 hover:text-white" href="/#history">
+        <Link className="inline-flex items-center gap-2 text-sm text-white/48 hover:text-white" href="/history">
           Local intents
           <ArrowRight size={14} />
         </Link>

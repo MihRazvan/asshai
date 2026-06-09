@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
 import { ArrowRight, ShieldAlert } from "lucide-react";
 import { decodeAbiParameters, Hex, parseEther, parseEventLogs, parseUnits } from "viem";
@@ -94,6 +95,7 @@ function venueByPoolId(poolId: string | undefined) {
 export default function Home() {
   const router = useRouter();
   const { chainId, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
   const { switchChain } = useSwitchChain();
   const { data: hash, error, isPending, writeContract } = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash });
@@ -236,6 +238,11 @@ export default function Home() {
 
   function submitGoal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!isConnected) {
+      openConnectModal?.();
+      return;
+    }
+
     if (!goalSupport.supported) {
       return;
     }
@@ -270,6 +277,8 @@ export default function Home() {
 
   const buttonLabel = isPending
     ? "Submitting to Somnia..."
+    : !isConnected
+      ? "Connect wallet"
     : !walletChainKnown
       ? "Checking wallet network..."
       : mustSwitchToSomnia
@@ -277,22 +286,28 @@ export default function Home() {
         : "Compile intent";
 
   return (
-    <main className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-[88rem] flex-col px-5 pb-6 pt-1 lg:px-8">
-      <form className="mx-auto w-full max-w-[62rem]" onSubmit={submitGoal}>
-        <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.06),transparent_28rem),rgba(8,9,8,0.82)] p-4 shadow-[0_2rem_8rem_rgba(0,0,0,0.28)] backdrop-blur-xl">
-          <div className="relative rounded-xl border border-white/[0.12] bg-white/[0.035] shadow-inner focus-within:border-white/[0.28]">
-            <span className="absolute left-5 top-5 h-7 w-px rounded-full bg-white/55" />
+    <main className="page-shell home-shell">
+      <section className="home-intro" aria-labelledby="home-title">
+        <p className="eyebrow">On-chain intent compiler</p>
+        <h1 id="home-title">What should your USDC do next?</h1>
+        <p>Describe the outcome. Asshai compiles a verified route and keeps the reasoning on Somnia.</p>
+      </section>
+
+      <form className="composer" onSubmit={submitGoal}>
+        <section className="home-composer-card">
+          <div className="composer-input-wrap">
             <textarea
-              className="min-h-28 w-full resize-none bg-transparent px-8 py-5 pr-14 font-serif text-[clamp(1.55rem,2.4vw,2.25rem)] leading-snug text-white outline-none placeholder:text-white/28"
+              className="composer-textarea"
               id="goal"
               value={goal}
               onChange={(event) => setGoal(event.target.value)}
               placeholder={examplePrompts[placeholderIndex]}
               required
             />
+            <span className="compile-hint">⌘ ↵</span>
           </div>
 
-          <div className="mt-3 grid items-end gap-3 border-t border-white/[0.07] pt-3 lg:grid-cols-[minmax(0,1fr)_25rem]">
+          <div className="composer-control-row">
             <PromptChips
               onSelect={(prompt, amount) => {
                 setGoal(prompt);
@@ -300,15 +315,11 @@ export default function Home() {
               }}
             />
 
-            <div className="grid min-w-0 gap-2 sm:grid-cols-[10.5rem_minmax(0,1fr)] lg:justify-self-end">
-              <label
-                className="grid min-w-0 gap-1"
-                htmlFor="source-amount"
-              >
-                <span className="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-white/38">Amount</span>
-                <span className="flex h-10 min-w-0 items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.025] px-2.5 transition-colors focus-within:border-white/[0.24]">
+            <div className="composer-action-row">
+              <label className="amount-inline" htmlFor="source-amount">
+                <span>Amount</span>
+                <div className="amount-input-wrap">
                   <input
-                    className="min-w-0 flex-1 bg-transparent font-mono text-sm text-white outline-none"
                     id="source-amount"
                     inputMode="decimal"
                     min="0"
@@ -319,17 +330,17 @@ export default function Home() {
                     onChange={(event) => setSourceAmountInput(event.target.value)}
                     placeholder="1"
                   />
-                  <span className="flex shrink-0 items-center gap-1.5 font-mono text-[0.62rem] uppercase tracking-[0.1em] text-white/48">
+                  <span className="amount-token">
                     <VenueLogo poolId="usdc" label="USDC" size={18} />
                     USDC
                   </span>
-                </span>
+                </div>
               </label>
 
               <Button
-                className="mt-auto h-10 min-w-0 rounded-lg border border-white/[0.12] bg-[#f7f4eb] px-4 font-mono text-[0.68rem] font-semibold uppercase tracking-[0.11em] text-[#080807] shadow-[0_0.8rem_2.2rem_rgba(247,244,235,0.07)] hover:bg-white"
+                className="primary-cta compact"
                 type="submit"
-                disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
+                disabled={!walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
               >
                 <span className="truncate">{buttonLabel}</span>
                 <ArrowRight className="size-4" />
@@ -364,7 +375,7 @@ export default function Home() {
         ))}
       </form>
 
-      <div id="history">
+      <div>
         <ReceiptTicker receipts={recentReceipts} />
       </div>
 
