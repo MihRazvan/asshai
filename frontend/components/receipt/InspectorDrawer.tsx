@@ -25,25 +25,23 @@ export function InspectorDrawer({
 
   return (
     <Drawer.Root open={Boolean(payload)} onOpenChange={(open) => !open && onClose()} direction="right">
-      <Drawer.Portal>
-        <Drawer.Overlay className="inspector-overlay" />
-        <Drawer.Content className="inspector-drawer" aria-describedby={undefined}>
-          <div className="inspector-header">
-            <div>
-              {payload?.eyebrow ? <p>{payload.eyebrow}</p> : null}
-              <Drawer.Title>{payload?.title ?? "Inspector"}</Drawer.Title>
-            </div>
-            <button className="icon-button" type="button" onClick={onClose} aria-label="Close inspector">
-              <X size={15} />
-            </button>
+      <Drawer.Overlay className="inspector-overlay" />
+      <Drawer.Content className="inspector-drawer" aria-describedby={undefined}>
+        <div className="inspector-header">
+          <div>
+            {payload?.eyebrow ? <p>{payload.eyebrow}</p> : null}
+            <Drawer.Title>{payload?.title ?? "Inspector"}</Drawer.Title>
           </div>
-          <pre>{text}</pre>
-          <button className="secondary-action" type="button" onClick={() => navigator.clipboard.writeText(text)}>
-            <Copy size={14} />
-            Copy
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Close inspector">
+            <X size={15} />
           </button>
-        </Drawer.Content>
-      </Drawer.Portal>
+        </div>
+        <pre>{text}</pre>
+        <button className="secondary-action" type="button" onClick={() => navigator.clipboard.writeText(text)}>
+          <Copy size={14} />
+          Copy
+        </button>
+      </Drawer.Content>
     </Drawer.Root>
   );
 }
