@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, ShieldAlert } from "lucide-react";
 import { decodeAbiParameters, Hex, parseEther, parseEventLogs, parseUnits } from "viem";
 import { useAccount, useReadContracts, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { VenueLogo } from "@/components/asshai/VenueLogo";
 import { PromptChips } from "@/components/home/PromptChips";
 import { ReceiptTicker } from "@/components/home/ReceiptTicker";
 import { Button } from "@/components/ui/button";
@@ -291,46 +292,49 @@ export default function Home() {
             />
           </div>
 
-          <div className="mt-3">
+          <div className="mt-3 grid items-end gap-3 border-t border-white/[0.07] pt-3 lg:grid-cols-[minmax(0,1fr)_25rem]">
             <PromptChips
               onSelect={(prompt, amount) => {
                 setGoal(prompt);
                 setSourceAmountInput(amount);
               }}
             />
-          </div>
 
-          <div className="mt-4 grid items-end gap-3 border-t border-white/[0.07] pt-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-            <label
-              className="grid gap-1"
-              htmlFor="source-amount"
-            >
-              <span className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-white/42">Amount</span>
-              <span className="flex items-end gap-3">
-                <input
-                  className="min-w-0 flex-1 border-b border-white/[0.14] bg-transparent pb-1 font-serif text-3xl leading-none text-white outline-none transition-colors focus:border-white/[0.32]"
-                  id="source-amount"
-                  inputMode="decimal"
-                  min="0"
-                  pattern="[0-9]+([.][0-9]{1,6})?"
-                  title="Enter a USDC amount greater than 0, up to 6 decimals."
-                  type="text"
-                  value={sourceAmountInput}
-                  onChange={(event) => setSourceAmountInput(event.target.value)}
-                  placeholder="1"
-                />
-                <span className="font-mono text-sm uppercase tracking-[0.16em] text-white/58">USDC</span>
-              </span>
-            </label>
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[10.5rem_minmax(0,1fr)] lg:justify-self-end">
+              <label
+                className="grid min-w-0 gap-1"
+                htmlFor="source-amount"
+              >
+                <span className="font-mono text-[0.58rem] uppercase tracking-[0.18em] text-white/38">Amount</span>
+                <span className="flex h-10 min-w-0 items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.025] px-2.5 transition-colors focus-within:border-white/[0.24]">
+                  <input
+                    className="min-w-0 flex-1 bg-transparent font-mono text-sm text-white outline-none"
+                    id="source-amount"
+                    inputMode="decimal"
+                    min="0"
+                    pattern="[0-9]+([.][0-9]{1,6})?"
+                    title="Enter a USDC amount greater than 0, up to 6 decimals."
+                    type="text"
+                    value={sourceAmountInput}
+                    onChange={(event) => setSourceAmountInput(event.target.value)}
+                    placeholder="1"
+                  />
+                  <span className="flex shrink-0 items-center gap-1.5 font-mono text-[0.62rem] uppercase tracking-[0.1em] text-white/48">
+                    <VenueLogo poolId="usdc" label="USDC" size={18} />
+                    USDC
+                  </span>
+                </span>
+              </label>
 
-            <Button
-              className="h-full min-h-16 rounded-xl border border-white/[0.12] bg-[#f7f4eb] px-9 font-serif text-xl font-semibold text-[#080807] shadow-[0_1rem_3rem_rgba(247,244,235,0.08)] hover:bg-white"
-              type="submit"
-              disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
-            >
-              {buttonLabel}
-              <ArrowRight className="size-5" />
-            </Button>
+              <Button
+                className="mt-auto h-10 min-w-0 rounded-lg border border-white/[0.12] bg-[#f7f4eb] px-4 font-mono text-[0.68rem] font-semibold uppercase tracking-[0.11em] text-[#080807] shadow-[0_0.8rem_2.2rem_rgba(247,244,235,0.07)] hover:bg-white"
+                type="submit"
+                disabled={!isConnected || !walletChainKnown || isPending || !goalSupport.supported || !sourceAmount}
+              >
+                <span className="truncate">{buttonLabel}</span>
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </section>
 
