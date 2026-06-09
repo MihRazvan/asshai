@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 
@@ -179,7 +180,7 @@ function DropdownMenuSeparator({
 function DropdownMenuShortcut({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"span">) {
+}: ComponentPropsWithoutRef<"span">) {
   return (
     <span
       data-slot="dropdown-menu-shortcut"

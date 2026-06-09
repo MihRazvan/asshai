@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
-function InputGroup({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function InputGroup({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="input-group"
@@ -61,7 +62,7 @@ function InputGroupAddon({
   className,
   align = "inline-start",
   ...props
-}: React.ComponentPropsWithoutRef<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
+}: ComponentPropsWithoutRef<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
     <div
       role="group"
@@ -116,7 +117,7 @@ function InputGroupButton({
   )
 }
 
-function InputGroupText({ className, ...props }: React.ComponentPropsWithoutRef<"span">) {
+function InputGroupText({ className, ...props }: ComponentPropsWithoutRef<"span">) {
   return (
     <span
       className={cn(
@@ -131,7 +132,7 @@ function InputGroupText({ className, ...props }: React.ComponentPropsWithoutRef<
 function InputGroupInput({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"input">) {
+}: ComponentPropsWithoutRef<"input">) {
   return (
     <Input
       data-slot="input-group-control"
@@ -147,7 +148,7 @@ function InputGroupInput({
 function InputGroupTextarea({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"textarea">) {
+}: ComponentPropsWithoutRef<"textarea">) {
   return (
     <Textarea
       data-slot="input-group-control"

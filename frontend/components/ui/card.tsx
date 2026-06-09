@@ -1,8 +1,8 @@
-import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 
 import { cn } from "@/lib/utils"
 
-function Card({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function Card({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="card"
@@ -15,7 +15,7 @@ function Card({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
   )
 }
 
-function CardHeader({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function CardHeader({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="card-header"
@@ -28,7 +28,7 @@ function CardHeader({ className, ...props }: React.ComponentPropsWithoutRef<"div
   )
 }
 
-function CardTitle({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function CardTitle({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="card-title"
@@ -38,7 +38,7 @@ function CardTitle({ className, ...props }: React.ComponentPropsWithoutRef<"div"
   )
 }
 
-function CardDescription({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function CardDescription({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="card-description"
@@ -48,7 +48,7 @@ function CardDescription({ className, ...props }: React.ComponentPropsWithoutRef
   )
 }
 
-function CardAction({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function CardAction({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="card-action"
@@ -61,7 +61,7 @@ function CardAction({ className, ...props }: React.ComponentPropsWithoutRef<"div
   )
 }
 
-function CardContent({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function CardContent({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="card-content"
@@ -71,7 +71,7 @@ function CardContent({ className, ...props }: React.ComponentPropsWithoutRef<"di
   )
 }
 
-function CardFooter({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function CardFooter({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="card-footer"

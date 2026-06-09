@@ -1,4 +1,5 @@
 import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -23,7 +24,7 @@ function Alert({
   className,
   variant,
   ...props
-}: React.ComponentPropsWithoutRef<"div"> & VariantProps<typeof alertVariants>) {
+}: ComponentPropsWithoutRef<"div"> & VariantProps<typeof alertVariants>) {
   return (
     <div
       data-slot="alert"
@@ -34,7 +35,7 @@ function Alert({
   )
 }
 
-function AlertTitle({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function AlertTitle({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="alert-title"
@@ -50,7 +51,7 @@ function AlertTitle({ className, ...props }: React.ComponentPropsWithoutRef<"div
 function AlertDescription({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="alert-description"

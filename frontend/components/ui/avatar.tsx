@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { Avatar as AvatarPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
@@ -54,7 +55,7 @@ function AvatarFallback({
   )
 }
 
-function AvatarBadge({ className, ...props }: React.ComponentPropsWithoutRef<"span">) {
+function AvatarBadge({ className, ...props }: ComponentPropsWithoutRef<"span">) {
   return (
     <span
       data-slot="avatar-badge"
@@ -70,7 +71,7 @@ function AvatarBadge({ className, ...props }: React.ComponentPropsWithoutRef<"sp
   )
 }
 
-function AvatarGroup({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function AvatarGroup({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="avatar-group"
@@ -86,7 +87,7 @@ function AvatarGroup({ className, ...props }: React.ComponentPropsWithoutRef<"di
 function AvatarGroupCount({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="avatar-group-count"

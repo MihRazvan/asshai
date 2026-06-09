@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
@@ -81,7 +82,7 @@ function DialogContent({
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function DialogHeader({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="dialog-header"
@@ -96,7 +97,7 @@ function DialogFooter({
   showCloseButton = false,
   children,
   ...props
-}: React.ComponentPropsWithoutRef<"div"> & {
+}: ComponentPropsWithoutRef<"div"> & {
   showCloseButton?: boolean
 }) {
   return (

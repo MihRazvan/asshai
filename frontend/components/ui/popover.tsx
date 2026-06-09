@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
@@ -45,7 +46,7 @@ function PopoverAnchor({
   return <PopoverPrimitive.Anchor data-slot="popover-anchor" {...props} />
 }
 
-function PopoverHeader({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function PopoverHeader({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="popover-header"
@@ -55,7 +56,7 @@ function PopoverHeader({ className, ...props }: React.ComponentPropsWithoutRef<"
   )
 }
 
-function PopoverTitle({ className, ...props }: React.ComponentPropsWithoutRef<"h2">) {
+function PopoverTitle({ className, ...props }: ComponentPropsWithoutRef<"h2">) {
   return (
     <div
       data-slot="popover-title"
@@ -68,7 +69,7 @@ function PopoverTitle({ className, ...props }: React.ComponentPropsWithoutRef<"h
 function PopoverDescription({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"p">) {
+}: ComponentPropsWithoutRef<"p">) {
   return (
     <p
       data-slot="popover-description"

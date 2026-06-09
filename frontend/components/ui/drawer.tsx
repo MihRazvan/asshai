@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { ComponentPropsWithoutRef } from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
@@ -72,7 +73,7 @@ function DrawerContent({
   )
 }
 
-function DrawerHeader({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function DrawerHeader({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="drawer-header"
@@ -85,7 +86,7 @@ function DrawerHeader({ className, ...props }: React.ComponentPropsWithoutRef<"d
   )
 }
 
-function DrawerFooter({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
+function DrawerFooter({ className, ...props }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-slot="drawer-footer"
