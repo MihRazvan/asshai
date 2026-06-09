@@ -1,64 +1,88 @@
 # Asshai
 
-On-chain intent compiler for cross-chain stablecoin yield on Somnia.
+Asshai is an on-chain intent compiler for stablecoin yield.
 
-Asshai translates fuzzy user goals like "maximize my USDC yield, 7-day lockup" into a consensus-verified, ERC-7683-shaped execution plan on Somnia. The v1 demo executes that plan through LI.FI Composer because raw LI.FI Intents callback orders were not reliably filled by public solvers during testing. Raw LI.FI Intents remain a compatibility and research path, not the demo-critical execution backend.
+Users describe a fuzzy outcome, such as "find the safest USDC yield with no lockup" or "maximize my USDC return, vaults are okay." Asshai sends the goal to Somnia, where validator-consensus agents fetch verified venue data, ask an LLM to choose a supported route, and store an auditable receipt of the decision. The frontend then executes the compiled route through LI.FI Composer from Arbitrum USDC into a Base yield position.
 
-This repository follows `BUILD_PLAN.md` as the source of truth.
+The key constraint is intentional: the LLM never controls funds or arbitrary addresses. It can only choose from a hardcoded, registry-backed venue allowlist. Solidity validates the selected pool and builds the encoded StandardOrder-shaped artifact deterministically.
 
-## Somnia testnet contracts
+## Live App
+
+- App: `https://asshai.vercel.app`
+- Source chain: Arbitrum USDC
+- Destination chain: Base
+- Compile chain: Somnia Testnet
+- Execution backend: LI.FI Composer
+
+## What Works
+
+- Natural-language USDC yield goals.
+- Consensus-verified venue selection on Somnia.
+- On-chain receipt log for rates, LLM decision, selected candidate, allocation plan, and encoded order.
+- Execution from Arbitrum USDC into verified Base yield venues.
+- One-click wallet flow where supported, with sequential approve/execute fallback.
+- Receipt pages showing the chosen venue, rejected alternatives, route plan, execution status, and raw proof data.
+
+## Supported V1 Scope
+
+Asshai v1 supports single-allocation Arbitrum USDC routes into verified Base venues:
+
+- Aave V3 USDC on Base
+- Compound V3 USDC on Base
+- Spark USDC Vault on Base
+- Moonwell Flagship USDC on Base
+- Fluid USDC on Base
+- Steakhouse Prime USDC on Base
+
+Unsupported in v1:
+
+- Split allocations
+- Conditional automation
+- Non-USDC source assets
+- Unverified destination chains
+- Multi-step portfolio management
+
+## Deployed Somnia Testnet Contracts
 
 - GoalRegistry: `0x3d37cDE79CCcA78334972e6bf1d351f607aF2ca6`
-- CompilerEngineV3: `0x575f48bCC5E369573822dB19C52f4bdf7495cb80`
+- CompilerEngine: `0xA6195DAbDaB6EB0D53cF03933d868A83e6469672`
 - ReceiptLog: `0xCaf26d33E74cc952284AA3aA71a67DBe69deEFC1`
 - IntentStore: `0x0D0891Ae2733E3D8644D1044F497Af4bb63404ea`
 - AddressRegistry: `0x146bd5510D7B488d936b23040062e2ca8Fc26E76`
 - StandardOrderEncoder: `0xB9084F50D6F75006953F69741762548990B334E7`
 
-`CompilerEngine.sol` is the legacy three-agent compiler kept for tests/research. `CompilerEngineV2` is the single-pool compiler. The live stack points to `CompilerEngineV3`, which uses one JSON API agent call, one LLM decision-object call, and deterministic Solidity encoding.
-
-## V1 product envelope
-
-- Source: Arbitrum USDC.
-- Destination: Base.
-- Allocation mode: single venue only.
-- Verified venues: Base Aave V3 USDC and Base Compound V3 USDC.
-- Execution: LI.FI Composer (`li.quest/v1/quote` and `/v1/quote/contractCall`).
-- Unsupported for v1: split allocations, conditional automation, unsupported tokens, and unverified destination chains.
-
-Live execution proof:
-
-- Aave: Arbitrum USDC -> Base `aBasUSDC` completed for `0.1` and `1` USDC tests.
-- Compound: Arbitrum USDC -> Base Compound V3 completed through contract-call Composer. Route tx `0x1f1938696967d60e40df284a34ec3479a962b74ecc409b6ed42d0cd693125732`; received `0.097997 cUSDCv3` delta.
-
-The deterministic policy layer lives in `frontend/lib/goal-policy.json` and is exposed through `/api/goal-policy`.
-
-## Deployment recipe
-
-1. Deploy or verify the core Somnia contracts: `GoalRegistry`, `ReceiptLog`, `IntentStore`, `AddressRegistry`, and `StandardOrderEncoder`.
-2. Seed `AddressRegistry` with verified LI.FI/OIF addresses and supported venues using `contracts/script/SeedRegistry.s.sol`.
-3. Deploy `CompilerEngineV3` with `contracts/script/DeployCompilerEngineV3.s.sol`.
-4. Wire `GoalRegistry`, `ReceiptLog`, and `IntentStore` to the new compiler.
-5. Deploy the frontend and set Vercel env vars to the live contract addresses.
-6. Run quote-only coverage before spending USDC:
+## Local Development
 
 ```bash
-pnpm coverage:goals --amount=0.1 --out=docs/coverage/latest-v2.json
+pnpm install
+pnpm dev
 ```
 
-## Smoke test
+The frontend runs from the `frontend` workspace and uses Next.js App Router.
 
-The canonical BTC price oracle smoke contract is deployed at
-`0x38ea72f87b8473e9c06690ecbc788fea2fcdba8c`.
+Useful checks:
 
-The LLM inference smoke contract is deployed at
-`0xeb1ff73d01e3cd6ad68a36a7de3b2b0292c7a9da`.
+```bash
+pnpm --filter frontend typecheck
+pnpm type-boundaries
+pnpm build
+forge test --root contracts
+```
 
-## Compiler data source
+## Environment
 
-`CompilerEngineV3` reads a compact rates payload from `COMPILER_RATES_URL` using
-the JSON API agent selector in `COMPILER_RATES_SELECTOR`. The frontend exposes
-the intended normalizer at `/api/yields`; point `COMPILER_RATES_URL` at the
-public deployed app URL before deploying a compiler intended to run live.
-Current testnet compiler source: `https://asshai.vercel.app/api/yields` with
-selector `payload`.
+Copy `.env.example` and provide the required RPC/key values for local contract work.
+
+Frontend deployment expects the public contract addresses and RPC values used by `frontend/lib/contracts.ts` and `frontend/lib/somnia.ts`.
+
+## Architecture Summary
+
+1. The user posts a goal to `GoalRegistry` on Somnia.
+2. `CompilerEngine` calls the Somnia JSON API agent to fetch a compact rates payload.
+3. The Somnia LLM agent chooses one supported venue and returns structured JSON.
+4. Solidity validates the selected venue against the allowlist.
+5. `StandardOrderEncoder` builds the deterministic order-shaped artifact.
+6. `ReceiptLog` stores each reasoning step on-chain.
+7. The frontend executes the compiled route through LI.FI Composer.
+
+Asshai is not a solver. It is the trustless translation layer above solvers and routers: human goal in, validated executable route out, with the reasoning trail preserved on-chain.
