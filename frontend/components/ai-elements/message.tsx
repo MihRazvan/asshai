@@ -298,7 +298,7 @@ export const MessageBranchNext = ({
   );
 };
 
-export type MessageBranchPageProps = HTMLAttributes<HTMLSpanElement>;
+export type MessageBranchPageProps = ComponentProps<typeof ButtonGroupText>;
 
 export const MessageBranchPage = ({
   className,
