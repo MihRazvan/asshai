@@ -724,6 +724,14 @@ a {
   max-width: 46rem;
 }
 
+.centered-utility {
+  justify-items: center;
+}
+
+.utility-header.centered {
+  text-align: center;
+}
+
 .history-list,
 .how-grid {
   display: grid;
@@ -775,14 +783,48 @@ a {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.how-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: min(100%, 68rem);
+}
+
 .how-card,
 .empty-cta {
   padding: 1.25rem;
 }
 
-.how-card span {
+.how-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 13rem;
+}
+
+.how-card::after {
+  position: absolute;
+  inset: auto -2rem -4rem auto;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(247, 244, 235, 0.055), transparent 68%);
+  content: "";
+}
+
+.how-card span,
+.how-card svg {
   color: var(--accent);
+}
+
+.how-card span {
   font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+}
+
+.how-card svg {
+  display: block;
+  margin-top: 1.9rem;
 }
 
 .how-card h2,
@@ -808,6 +850,67 @@ a {
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 0.82rem;
+}
+
+.centered-empty {
+  width: min(100%, 38rem);
+  text-align: center;
+}
+
+.centered-empty a {
+  justify-content: center;
+}
+
+.how-proof-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(20rem, 1.2fr);
+  gap: 1rem;
+  align-items: center;
+  width: min(100%, 68rem);
+  border: 1px solid rgba(247, 244, 235, 0.095);
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 122, 26, 0.08), transparent 22rem),
+    linear-gradient(180deg, rgba(247, 244, 235, 0.032), rgba(247, 244, 235, 0.012)),
+    rgba(5, 6, 7, 0.7);
+  padding: 1.1rem;
+}
+
+.how-proof-card p {
+  margin: 0;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.how-proof-card h2 {
+  max-width: 33rem;
+  margin: 0.55rem 0 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1.55rem, 3vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+
+.proof-rail {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.proof-rail span {
+  border: 1px solid rgba(247, 244, 235, 0.1);
+  border-radius: 999px;
+  background: rgba(247, 244, 235, 0.035);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.42rem 0.65rem;
 }
 
 .section-kicker {
@@ -1550,8 +1653,14 @@ a {
 
   .composer-control-row,
   .composer-action-row,
-  .how-grid {
+  .how-grid,
+  .how-flow,
+  .how-proof-card {
     grid-template-columns: 1fr;
+  }
+
+  .proof-rail {
+    justify-content: flex-start;
   }
 
   .receipt-hero-band,

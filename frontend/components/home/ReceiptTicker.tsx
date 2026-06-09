@@ -16,17 +16,27 @@ type TickerReceipt = {
   status?: string;
 };
 
-export function ReceiptTicker({ receipts }: { receipts: (TickerReceipt | undefined)[] }) {
+export function ReceiptTicker({
+  receipts,
+  showViewAll = true,
+  title = "History",
+}: {
+  receipts: (TickerReceipt | undefined)[];
+  showViewAll?: boolean;
+  title?: string;
+}) {
   const visibleReceipts = receipts.filter((receipt): receipt is TickerReceipt => Boolean(receipt));
 
   return (
     <section className="mx-auto mt-5 w-full max-w-[62rem]">
       <div className="mb-3 flex items-center justify-between">
-        <p className="font-mono text-[0.72rem] uppercase tracking-[0.28em] text-white/42">History</p>
-        <Link className="inline-flex items-center gap-2 text-sm text-white/48 hover:text-white" href="/history">
-          Local intents
-          <ArrowRight size={14} />
-        </Link>
+        <p className="font-mono text-[0.72rem] uppercase tracking-[0.28em] text-white/42">{title}</p>
+        {showViewAll ? (
+          <Link className="inline-flex items-center gap-2 text-sm text-white/48 hover:text-white" href="/history">
+            Local intents
+            <ArrowRight size={14} />
+          </Link>
+        ) : null}
       </div>
       <div className="overflow-hidden border-y border-white/[0.075]" tabIndex={0} aria-label="Intent history">
         {visibleReceipts.length === 0 ? (

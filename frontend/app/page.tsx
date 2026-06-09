@@ -5,14 +5,13 @@ import { useRouter } from "next/navigation";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { motion } from "framer-motion";
 import { ArrowRight, ShieldAlert } from "lucide-react";
-import { decodeAbiParameters, Hex, parseEther, parseEventLogs, parseUnits } from "viem";
-import { useAccount, useReadContracts, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { parseEther, parseEventLogs, parseUnits } from "viem";
+import { useAccount, useSwitchChain, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { VenueLogo } from "@/components/asshai/VenueLogo";
 import { PromptChips } from "@/components/home/PromptChips";
-import { ReceiptTicker } from "@/components/home/ReceiptTicker";
 import { Button } from "@/components/ui/button";
-import { goalRegistryAbi, goalRegistryAddress, receiptLogAbi, receiptLogAddress } from "@/lib/contracts";
-import { classifyGoalSupport, goalPolicy } from "@/lib/goal-support";
+import { goalRegistryAbi, goalRegistryAddress } from "@/lib/contracts";
+import { classifyGoalSupport } from "@/lib/goal-support";
 import { somniaTestnet } from "@/lib/somnia";
 
 const arbitrumUsdc = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
@@ -26,77 +25,6 @@ const headlinePrompts = [
   "Where should your stables earn?",
   "Describe the yield you want.",
 ];
-const goalStatusLabels = ["Pending", "Compiling", "Ready", "Submitted", "Settled", "Failed", "Expired"] as const;
-
-type ReceiptEntry = {
-  stepName: string;
-  data: Hex;
-};
-
-type GoalStruct = {
-  naturalLanguage: string;
-  status: number;
-  createdAt: bigint;
-};
-
-function decodeString(data: Hex | undefined) {
-  if (!data || data === "0x") {
-    return "";
-  }
-
-  try {
-    return decodeAbiParameters([{ type: "string" }], data)[0];
-  } catch {
-    return "";
-  }
-}
-
-function parseDecision(receipts: readonly ReceiptEntry[] | undefined) {
-  const decisionText = decodeString(receipts?.find((entry) => entry.stepName === "decision_built")?.data);
-
-  if (!decisionText) {
-    return undefined;
-  }
-
-  try {
-    return JSON.parse(decisionText) as { poolId?: string; objectiveMatched?: string };
-  } catch {
-    return undefined;
-  }
-}
-
-function parseRatesApy(receipts: readonly ReceiptEntry[] | undefined, poolId: string | undefined) {
-  if (!poolId) {
-    return undefined;
-  }
-
-  const ratesText = decodeString(receipts?.find((entry) => entry.stepName === "rates_fetched")?.data);
-  const row = ratesText
-    .split("|")
-    .find((candidate) => candidate.includes(`poolId=${poolId}`));
-  const apy = row?.match(/(?:^|,)apy=([^,]+)/)?.[1];
-
-  return apy ? Number(apy).toFixed(2) : undefined;
-}
-
-function relativeAge(timestamp: bigint | undefined) {
-  if (!timestamp) {
-    return undefined;
-  }
-
-  const seconds = Math.max(1, Math.floor(Date.now() / 1000) - Number(timestamp));
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
-
-function venueByPoolId(poolId: string | undefined) {
-  return goalPolicy.supportedVenues.find((venue) => venue.poolId === poolId);
-}
-
 export default function Home() {
   const router = useRouter();
   const { chainId, isConnected } = useAccount();
@@ -107,7 +35,6 @@ export default function Home() {
   const [goal, setGoal] = useState("");
   const [sourceAmountInput, setSourceAmountInput] = useState("1");
   const [goalId, setGoalId] = useState<bigint>();
-  const [historyGoalIds, setHistoryGoalIds] = useState<bigint[]>([]);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [headlineIndex, setHeadlineIndex] = useState(0);
   const [typedHeadline, setTypedHeadline] = useState("");
@@ -128,83 +55,12 @@ export default function Home() {
   const walletChainKnown = !isConnected || typeof chainId === "number";
   const mustSwitchToSomnia = Boolean(isConnected && typeof chainId === "number" && chainId !== somniaTestnet.id);
 
-  const recentContracts = historyGoalIds.flatMap((id) => [
-    {
-      address: goalRegistryAddress,
-      abi: goalRegistryAbi,
-      functionName: "getGoal",
-      args: [id],
-      chainId: somniaTestnet.id,
-    },
-    {
-      address: receiptLogAddress,
-      abi: receiptLogAbi,
-      functionName: "getEntries",
-      args: [id],
-      chainId: somniaTestnet.id,
-    },
-  ] as const);
-
-  const { data: recentData } = useReadContracts({
-    contracts: recentContracts,
-    query: { enabled: recentContracts.length > 0, refetchInterval: 15_000 },
-  });
-
-  const recentReceipts = useMemo(
-    () =>
-      historyGoalIds
-        .map((id, index) => {
-          const goalResult = recentData?.[index * 2];
-          const receiptsResult = recentData?.[index * 2 + 1];
-
-          if (goalResult?.status !== "success" || receiptsResult?.status !== "success") {
-            return undefined;
-          }
-
-          const compiledGoal = goalResult.result as GoalStruct;
-          const receipts = receiptsResult.result as readonly ReceiptEntry[];
-          if (!compiledGoal?.naturalLanguage) {
-            return undefined;
-          }
-
-          const decision = parseDecision(receipts);
-          const venue = venueByPoolId(decision?.poolId);
-
-          return {
-            goalId: id.toString(),
-            goal: compiledGoal.naturalLanguage,
-            poolId: decision?.poolId,
-            venueLabel: venue?.label,
-            objective: decision?.objectiveMatched,
-            apy: parseRatesApy(receipts, decision?.poolId),
-            age: relativeAge(compiledGoal.createdAt),
-            status: goalStatusLabels[compiledGoal.status] ?? "Unknown",
-          };
-        })
-        .filter(Boolean),
-    [historyGoalIds, recentData],
-  );
-
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const prompt = searchParams.get("prompt");
     const amount = searchParams.get("amount");
     if (prompt) setGoal(prompt);
     if (amount) setSourceAmountInput(amount);
-    try {
-      const stored = JSON.parse(window.localStorage.getItem("asshai-recent-intents") ?? "[]") as {
-        id?: string;
-      }[];
-      setHistoryGoalIds(
-        stored
-          .map((item) => item.id)
-          .filter((id): id is string => typeof id === "string" && /^\d+$/.test(id))
-          .map((id) => BigInt(id))
-          .slice(0, 6),
-      );
-    } catch {
-      setHistoryGoalIds([]);
-    }
   }, []);
 
   useEffect(() => {
@@ -409,10 +265,6 @@ export default function Home() {
           </p>
         ))}
       </form>
-
-      <div>
-        <ReceiptTicker receipts={recentReceipts} />
-      </div>
 
       {hash ? <p className="tx-result">Transaction: {hash}</p> : null}
       {receipt.isLoading ? <p className="tx-result">Waiting for confirmation...</p> : null}
