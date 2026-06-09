@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { createContext, useContext, useMemo } from "react";
 
 type ChangeType = "major" | "minor" | "patch" | "added" | "removed";
@@ -60,7 +60,7 @@ const changeTypeStyles: Record<ChangeType, string> = {
   removed: "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400",
 };
 
-const changeTypeIcons: Record<ChangeType, React.ReactNode> = {
+const changeTypeIcons: Record<ChangeType, ReactNode> = {
   added: <PlusIcon className="size-3" />,
   major: <ArrowRightIcon className="size-3" />,
   minor: <ArrowRightIcon className="size-3" />,

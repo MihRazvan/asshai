@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef } from "react"
+import type { ComponentProps, ComponentPropsWithoutRef } from "react"
 import { Loader2Icon } from "lucide-react"
 
 import { cn } from "@/lib/utils"

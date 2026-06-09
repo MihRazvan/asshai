@@ -5,6 +5,7 @@
   "scripts": {
     "build": "pnpm --filter frontend build",
     "dev": "pnpm --filter frontend dev",
+    "type-boundaries": "node frontend/scripts/check-react-type-boundaries.mjs",
     "contracts:build": "forge build --root contracts",
     "contracts:test": "forge test --root contracts",
     "compound:smoke": "node frontend/scripts/execute-compound-smoke.mjs",

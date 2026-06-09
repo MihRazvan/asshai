@@ -2,6 +2,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 import "./globals.css";
 
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Toaster } from "sonner";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="en">

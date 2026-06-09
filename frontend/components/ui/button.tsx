@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { ComponentPropsWithRef } from "react"
+import type { ComponentProps, ComponentPropsWithRef } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
 
