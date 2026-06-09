@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 540" width="1920" height="540">
+  <defs>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Geist+Mono:wght@400;500&amp;display=swap');</style>
+    <radialGradient id="bgRed" cx="14%" cy="55%" r="50%">
+      <stop offset="0%" stop-color="#e5484d" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#e5484d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bgGreen" cx="86%" cy="55%" r="50%">
+      <stop offset="0%" stop-color="#ff7a1a" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#ff7a1a" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid2" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(247,244,235,0.022)" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="grid2Fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="10%" stop-color="#000" stop-opacity="1"/>
+      <stop offset="90%" stop-color="#000" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="grid2FadeMask">
+      <rect width="1920" height="540" fill="url(#grid2Fade)"/>
+    </mask>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(229,72,77,0.55)"/>
+    </marker>
+    <marker id="arrowOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,122,26,0.7)"/>
+    </marker>
+  </defs>
+
+  <rect width="1920" height="540" fill="#050607"/>
+  <rect width="1920" height="540" fill="url(#grid2)" mask="url(#grid2FadeMask)"/>
+  <rect width="1920" height="540" fill="url(#bgRed)"/>
+  <rect width="1920" height="540" fill="url(#bgGreen)"/>
+
+  <g font-family="'Geist Mono', ui-monospace, monospace" font-size="13" letter-spacing="3">
+    <text x="64" y="56" fill="rgba(247,244,235,0.18)">// $</text>
+    <text x="1856" y="56" text-anchor="end" fill="rgba(247,244,235,0.18)">@()</text>
+    <text x="64" y="508" fill="rgba(247,244,235,0.18)">&gt;&gt; ::</text>
+    <text x="1856" y="508" text-anchor="end" fill="rgba(255,122,26,0.24)">{s}</text>
+  </g>
+
+  <line x1="960" y1="80" x2="960" y2="460" stroke="rgba(247,244,235,0.06)" stroke-width="1" stroke-dasharray="3 6"/>
+
+  <!-- LEFT: STATUS QUO -->
+  <g transform="translate(80, 90)">
+    <text font-family="'Geist Mono', ui-monospace, monospace" font-size="11" letter-spacing="4" fill="rgba(229,72,77,0.7)">STATUS QUO</text>
+    <text y="36" font-family="'Instrument Serif', Georgia, serif" font-size="32" fill="#f7f4eb">private translation</text>
+
+    <g transform="translate(0, 80)">
+      <rect width="800" height="60" rx="10" fill="rgba(247,244,235,0.03)" stroke="rgba(247,244,235,0.08)"/>
+      <text x="20" y="24" font-family="'Geist Mono', ui-monospace, monospace" font-size="9" letter-spacing="3" fill="rgba(247,244,235,0.4)">FUZZY USER GOAL</text>
+      <text x="20" y="46" font-family="'Instrument Serif', Georgia, serif" font-size="18" font-style="italic" fill="rgba(247,244,235,0.86)">"safest USDC yield, no lockup"</text>
+    </g>
+
+    <line x1="400" y1="150" x2="400" y2="180" stroke="rgba(229,72,77,0.55)" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+
+    <g transform="translate(0, 190)">
+      <rect width="800" height="118" rx="10" fill="rgba(229,72,77,0.06)" stroke="rgba(229,72,77,0.22)" stroke-dasharray="6 4"/>
+      <text x="20" y="24" font-family="'Geist Mono', ui-monospace, monospace" font-size="9" letter-spacing="3" fill="rgba(229,72,77,0.78)">CENTRALIZED AI · PRIVATE BACKEND</text>
+      <text x="20" y="62" font-family="'Instrument Serif', Georgia, serif" font-size="26" font-style="italic" fill="rgba(247,244,235,0.62)">trust the operator</text>
+      <g transform="translate(20, 88)" font-family="'Geist Mono', ui-monospace, monospace" font-size="11" fill="rgba(229,72,77,0.85)" letter-spacing="0.5">
+        <text>× no audit trail</text>
+        <text x="180">× single provider</text>
+        <text x="360">× private model</text>
+        <text x="540">× off-chain reasoning</text>
+      </g>
+    </g>
+
+    <line x1="400" y1="318" x2="400" y2="348" stroke="rgba(229,72,77,0.55)" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+
+    <g transform="translate(0, 358)">
+      <rect width="800" height="58" rx="10" fill="rgba(247,244,235,0.025)" stroke="rgba(247,244,235,0.08)"/>
+      <text x="20" y="22" font-family="'Geist Mono', ui-monospace, monospace" font-size="9" letter-spacing="3" fill="rgba(247,244,235,0.4)">EXECUTABLE ORDER · NO PROOF OF SELECTION</text>
+      <text x="20" y="44" font-family="'Geist Mono', ui-monospace, monospace" font-size="13" fill="rgba(247,244,235,0.52)">trust@example.com sent you this</text>
+    </g>
+  </g>
+
+  <!-- RIGHT: ASSHAI -->
+  <g transform="translate(1040, 90)">
+    <text font-family="'Geist Mono', ui-monospace, monospace" font-size="11" letter-spacing="4" fill="rgba(255,122,26,0.9)">ASSHAI</text>
+    <text y="36" font-family="'Instrument Serif', Georgia, serif" font-size="32" fill="#f7f4eb">consensus translation</text>
+
+    <g transform="translate(0, 80)">
+      <rect width="800" height="60" rx="10" fill="rgba(247,244,235,0.03)" stroke="rgba(247,244,235,0.08)"/>
+      <text x="20" y="24" font-family="'Geist Mono', ui-monospace, monospace" font-size="9" letter-spacing="3" fill="rgba(247,244,235,0.4)">FUZZY USER GOAL</text>
+      <text x="20" y="46" font-family="'Instrument Serif', Georgia, serif" font-size="18" font-style="italic" fill="rgba(247,244,235,0.86)">"safest USDC yield, no lockup"</text>
+    </g>
+
+    <line x1="400" y1="150" x2="400" y2="180" stroke="rgba(255,122,26,0.7)" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+
+    <g transform="translate(0, 190)">
+      <rect width="800" height="118" rx="10" fill="rgba(255,122,26,0.05)" stroke="rgba(255,122,26,0.26)"/>
+      <text x="20" y="24" font-family="'Geist Mono', ui-monospace, monospace" font-size="9" letter-spacing="3" fill="rgba(255,122,26,0.88)">SOMNIA · VALIDATOR CONSENSUS</text>
+      <text x="20" y="62" font-family="'Instrument Serif', Georgia, serif" font-size="26" fill="#f7f4eb">verify, don't trust</text>
+      <g transform="translate(20, 88)" font-family="'Geist Mono', ui-monospace, monospace" font-size="11" fill="#a5e2c3" letter-spacing="0.5">
+        <text>✓ on-chain receipts</text>
+        <text x="180">✓ 3/3 validator quorum</text>
+        <text x="380">✓ deterministic LLM</text>
+        <text x="560">✓ allowlist-constrained</text>
+      </g>
+    </g>
+
+    <line x1="400" y1="318" x2="400" y2="348" stroke="rgba(255,122,26,0.7)" stroke-width="1.5" marker-end="url(#arrowOrange)"/>
+
+    <g transform="translate(0, 358)">
+      <rect width="800" height="58" rx="10" fill="rgba(63,185,127,0.06)" stroke="rgba(63,185,127,0.28)"/>
+      <text x="20" y="22" font-family="'Geist Mono', ui-monospace, monospace" font-size="9" letter-spacing="3" fill="rgba(165,226,195,0.88)">EXECUTABLE ORDER · 5 ON-CHAIN RECEIPTS</text>
+      <text x="20" y="44" font-family="'Geist Mono', ui-monospace, monospace" font-size="13" fill="#a5e2c3">audit every decision · Somnia hash 0x7772...474ca5</text>
+    </g>
+  </g>
+</svg>

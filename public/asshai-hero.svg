@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 360" width="1920" height="360" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif&amp;family=Geist+Mono:wght@400;500&amp;display=swap');</style>
+    <radialGradient id="auroraOrange" cx="8%" cy="115%" r="55%">
+      <stop offset="0%" stop-color="#ff7a1a" stop-opacity="0.32"/>
+      <stop offset="55%" stop-color="#ff7a1a" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#ff7a1a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="auroraPurple" cx="94%" cy="115%" r="55%">
+      <stop offset="0%" stop-color="#624eff" stop-opacity="0.26"/>
+      <stop offset="55%" stop-color="#624eff" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#624eff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="gridBg" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(247,244,235,0.022)" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="gridFadeGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="14%" stop-color="#000" stop-opacity="1"/>
+      <stop offset="86%" stop-color="#000" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="gridFadeMask">
+      <rect width="1920" height="360" fill="url(#gridFadeGradient)"/>
+    </mask>
+  </defs>
+
+  <rect width="1920" height="360" fill="#050607"/>
+  <rect width="1920" height="360" fill="url(#gridBg)" mask="url(#gridFadeMask)"/>
+  <rect width="1920" height="360" fill="url(#auroraOrange)"/>
+  <rect width="1920" height="360" fill="url(#auroraPurple)"/>
+
+  <g font-family="'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace" font-size="13" letter-spacing="3">
+    <text x="64" y="56" fill="rgba(247,244,235,0.18)">// $</text>
+    <text x="1856" y="56" text-anchor="end" fill="rgba(247,244,235,0.18)">@()</text>
+    <text x="64" y="320" fill="rgba(247,244,235,0.18)">&gt;&gt; ::</text>
+    <text x="1856" y="320" text-anchor="end" fill="rgba(255,122,26,0.24)">{s}</text>
+  </g>
+
+  <g transform="translate(120, 0)">
+    <text x="0" y="165" font-family="'Instrument Serif', 'EB Garamond', Georgia, serif" font-size="72" fill="#f7f4eb" letter-spacing="-2">describe the outcome.</text>
+    <text x="0" y="240" font-family="'Instrument Serif', 'EB Garamond', Georgia, serif" font-size="72" fill="#f7f4eb" letter-spacing="-2">compile the on-chain path.</text>
+  </g>
+</svg>
