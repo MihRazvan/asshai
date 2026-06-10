@@ -3,7 +3,7 @@
 
 Asshai is an on-chain intent compiler that turns fuzzy stablecoin yield goals into consensus-verified, executable DeFi routes.
 
-[Live App](https://asshai.vercel.app/) | [Demo Video](#demo-video-placeholder) | [How It Works](#how-it-works) | [Deployments](#deployments) | [Quickstart](#quickstart)
+[Live App](https://asshai.vercel.app/) | [Demo Video](https://www.youtube.com/watch?v=LmsSIuGvOCM) | [How It Works](#how-it-works) | [Deployments](#deployments) | [Quickstart](#quickstart)
 
 ---
 
@@ -102,9 +102,9 @@ The demo shows:
 - LI.FI execution into the selected Base position
 - a final receipt with route and transaction evidence
 
-### Demo Video Placeholder
+### Demo Video
 
-Replace this section with the final hackathon demo video link.
+Watch the full hackathon demo: [https://www.youtube.com/watch?v=LmsSIuGvOCM](https://www.youtube.com/watch?v=LmsSIuGvOCM)
 
 ---
 
