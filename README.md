@@ -1,5 +1,5 @@
 # ASSHAI
-<img width="1920" height="360" alt="Asshai hero banner" src="./public/asshai-hero.svg" />
+<img alt="Asshai hero banner" src="./public/hero_banner.svg" />
 
 Asshai is an on-chain intent compiler that turns fuzzy stablecoin yield goals into consensus-verified, executable DeFi routes.
 
@@ -21,7 +21,7 @@ Real users do not start with a complete order. They start with goals:
 
 Today, translating those fuzzy goals into executable routes usually happens inside a private backend or centralized AI service. Asshai moves that translation onto Somnia, where validator-consensus agents fetch venue data, reason over the user's goal, and leave an on-chain receipt trail.
 
-<img width="1920" height="720" alt="Asshai problem diagram" src="./public/asshai-problem.svg" />
+<img alt="Asshai problem diagram" src="./public/problem_statement.svg" />
 
 Asshai is not a solver. It is the trustless translation layer above solvers and routers: human goal in, validated executable route out.
 
@@ -61,7 +61,7 @@ At a high level, Asshai proves this statement:
 
 > This route was selected from verified venue data, under Somnia consensus, constrained by an on-chain allowlist, and executed through LI.FI.
 
-<img width="1920" height="900" alt="Asshai architecture flow" src="./public/asshai-architecture.svg" />
+<img alt="Asshai architecture flow" src="./public/arhitecture_diagram.svg" />
 
 ### Compile Flow
 
